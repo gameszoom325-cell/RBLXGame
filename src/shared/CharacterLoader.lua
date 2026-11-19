@@ -37,6 +37,25 @@ local function createAttachment(name: string, parent: BasePart, cframe: CFrame?)
     return attachment
 end
 
+-- Helper to rigidly weld all secondary child parts to the primary Handle
+local function weldChildPartsToHandle(modelOrAccessory: Instance, handle: BasePart)
+    for _, part in ipairs(modelOrAccessory:GetChildren()) do
+        if part:IsA("BasePart") and part ~= handle then
+            part.CanCollide = false
+            part.Massless = true
+
+            local weld = part:FindFirstChildOfClass("WeldConstraint")
+            if not weld then
+                weld = Instance.new("WeldConstraint")
+                weld.Name = part.Name .. "Weld"
+                weld.Parent = part
+            end
+            weld.Part0 = handle
+            weld.Part1 = part
+        end
+    end
+end
+
 -- Constructs a mathematically compliant standard R15 humanoid rig from scratch
 function CharacterLoader.BuildBaseR15Model(name: string?): Model
     local model = Instance.new("Model")
@@ -276,7 +295,6 @@ end
 function CharacterLoader.EquipAccessories(character: Model, config: Types.CharacterConfig)
     local humanoid = character:WaitForChild("Humanoid") :: Humanoid
 
-    -- Look for prebuilt assets in ReplicatedStorage.Assets if available
     local assetsFolder = ReplicatedStorage:FindFirstChild("Assets")
     local accessoriesFolder = assetsFolder and assetsFolder:FindFirstChild("Characters")
         and assetsFolder.Characters:FindFirstChild("StormforgeValen")
@@ -286,6 +304,10 @@ function CharacterLoader.EquipAccessories(character: Model, config: Types.Charac
         local prebuilt = accessoriesFolder and accessoriesFolder:FindFirstChild(accSpec.id) :: Accessory
         if prebuilt then
             local clone = prebuilt:Clone()
+            local handle = clone:FindFirstChild("Handle") :: BasePart?
+            if handle then
+                weldChildPartsToHandle(clone, handle)
+            end
             humanoid:AddAccessory(clone)
         else
             -- Programmatic fallback accessory
@@ -322,6 +344,10 @@ function CharacterLoader.EquipWeapon(player: Player, config: Types.CharacterConf
     local tool: Tool
     if warhammerAsset then
         tool = warhammerAsset:Clone()
+        local handle = tool:FindFirstChild("Handle") :: BasePart?
+        if handle then
+            weldChildPartsToHandle(tool, handle)
+        end
     else
         tool = Instance.new("Tool")
         tool.Name = config.weapon.name
@@ -351,7 +377,6 @@ function CharacterLoader.SpawnHero(player: Player, heroId: Types.CharacterId): M
         return nil
     end
 
-    -- If player already has an R15 character, morph it, otherwise build from scratch
     local character = player.Character
     if not character or not character:FindFirstChild("HumanoidRootPart") then
         character = CharacterLoader.BuildBaseR15Model(player.Name)

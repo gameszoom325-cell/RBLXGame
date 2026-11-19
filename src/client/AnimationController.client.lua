@@ -3,6 +3,7 @@
     AnimationController.client.lua
     Manages loading, caching, and playback of hero animation tracks.
     Supports animation slots: Idle, Walk, Run, Jump, Attack, HeavyAttack, AbilityCast, VictoryPose.
+    Directly binds movement states (Walk/Run/Jump) and weapon attack swings.
 ]]
 
 local Players = game:GetService("Players")
@@ -16,6 +17,7 @@ local player = Players.LocalPlayer
 local loadedTracks: { [string]: AnimationTrack } = {}
 
 local AnimationController = {}
+local movementConnections: { RBXScriptConnection } = {}
 
 local function getAnimator(): Animator?
     local character = player.Character
@@ -28,6 +30,90 @@ local function getAnimator(): Animator?
         animator.Parent = humanoid
     end
     return animator
+end
+
+function AnimationController.PlayTrack(slotName: string, fadeTime: number?): AnimationTrack?
+    local track = loadedTracks[slotName]
+    if track then
+        track:Play(fadeTime or 0.15)
+        return track
+    else
+        return nil
+    end
+end
+
+function AnimationController.StopTrack(slotName: string, fadeTime: number?)
+    local track = loadedTracks[slotName]
+    if track and track.IsPlaying then
+        track:Stop(fadeTime or 0.15)
+    end
+end
+
+-- Connects movement events (Run, Walk, Jump) and tool attack swings
+local function bindCharacterAnimationEvents(character: Model)
+    -- Clean previous connections
+    for _, conn in ipairs(movementConnections) do
+        conn:Disconnect()
+    end
+    table.clear(movementConnections)
+
+    local humanoid = character:WaitForChild("Humanoid") :: Humanoid
+
+    -- Running state listener (Walk vs Run vs Idle)
+    local runConn = humanoid.Running:Connect(function(speed)
+        if speed > 0.5 then
+            AnimationController.StopTrack("Idle", 0.2)
+            if speed > 12 then
+                AnimationController.StopTrack("Walk", 0.15)
+                if not (loadedTracks["Run"] and loadedTracks["Run"].IsPlaying) then
+                    AnimationController.PlayTrack("Run", 0.15)
+                end
+            else
+                AnimationController.StopTrack("Run", 0.15)
+                if not (loadedTracks["Walk"] and loadedTracks["Walk"].IsPlaying) then
+                    AnimationController.PlayTrack("Walk", 0.15)
+                end
+            end
+        else
+            AnimationController.StopTrack("Walk", 0.2)
+            AnimationController.StopTrack("Run", 0.2)
+            if not (loadedTracks["Idle"] and loadedTracks["Idle"].IsPlaying) then
+                AnimationController.PlayTrack("Idle", 0.2)
+            end
+        end
+    end)
+    table.insert(movementConnections, runConn)
+
+    -- Jump / Freefall state listener
+    local stateConn = humanoid.StateChanged:Connect(function(_, newState)
+        if newState == Enum.HumanoidStateType.Jumping or newState == Enum.HumanoidStateType.Freefall then
+            AnimationController.PlayTrack("Jump", 0.1)
+        elseif newState == Enum.HumanoidStateType.Landed then
+            AnimationController.StopTrack("Jump", 0.15)
+        end
+    end)
+    table.insert(movementConnections, stateConn)
+
+    -- Tool Attack listener (Hammer swings)
+    local function hookTool(tool: Tool)
+        local actConn = tool.Activated:Connect(function()
+            AnimationController.PlayTrack("Attack", 0.05)
+        end)
+        table.insert(movementConnections, actConn)
+    end
+
+    local childConn = character.ChildAdded:Connect(function(child)
+        if child:IsA("Tool") then
+            hookTool(child)
+        end
+    end)
+    table.insert(movementConnections, childConn)
+
+    for _, child in ipairs(character:GetChildren()) do
+        if child:IsA("Tool") then
+            hookTool(child)
+        end
+    end
 end
 
 function AnimationController.LoadHeroAnimations(heroId: Types.CharacterId)
@@ -45,6 +131,7 @@ function AnimationController.LoadHeroAnimations(heroId: Types.CharacterId)
     table.clear(loadedTracks)
 
     -- Load new animation tracks
+    local trackCount = 0
     for slotName, assetId in pairs(config.animations) do
         local anim = Instance.new("Animation")
         anim.Name = slotName
@@ -55,7 +142,6 @@ function AnimationController.LoadHeroAnimations(heroId: Types.CharacterId)
         end)
 
         if success and track then
-            -- Configure priority based on slot
             if slotName == "Idle" then
                 track.Priority = Enum.AnimationPriority.Idle
                 track.Looped = true
@@ -69,28 +155,15 @@ function AnimationController.LoadHeroAnimations(heroId: Types.CharacterId)
             end
 
             loadedTracks[slotName] = track
+            trackCount += 1
         end
     end
 
-    print(string.format("[AnimationController] Loaded %d animation tracks for %s", #config.abilities, heroId))
-end
-
-function AnimationController.PlayTrack(slotName: string, fadeTime: number?): AnimationTrack?
-    local track = loadedTracks[slotName]
-    if track then
-        track:Play(fadeTime or 0.15)
-        return track
-    else
-        warn(string.format("[AnimationController] Animation track %s not loaded.", slotName))
-        return nil
+    if player.Character then
+        bindCharacterAnimationEvents(player.Character)
     end
-end
 
-function AnimationController.StopTrack(slotName: string, fadeTime: number?)
-    local track = loadedTracks[slotName]
-    if track and track.IsPlaying then
-        track:Stop(fadeTime or 0.15)
-    end
+    print(string.format("[AnimationController] Loaded %d animation tracks for %s", trackCount, heroId))
 end
 
 -- Re-hook on hero load
@@ -99,9 +172,8 @@ local heroLoadedEvent = networkFolder:WaitForChild("HeroLoaded") :: RemoteEvent
 
 heroLoadedEvent.OnClientEvent:Connect(function(heroId: string)
     AnimationController.LoadHeroAnimations(heroId)
-    -- Start idle track
     task.delay(0.2, function()
-        AnimationController.PlayTrack("Idle")
+        AnimationController.PlayTrack("Idle", 0.2)
     end)
 end)
 

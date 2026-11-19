@@ -25,16 +25,16 @@ local function onPlayerAdded(player: Player)
     print(string.format("[SpawnService] Player %s (%d) joined the game.", player.Name, player.UserId))
 
     player.CharacterAdded:Connect(function(character)
-        -- Wait for humanoid root part to stabilize
         character:WaitForChild("HumanoidRootPart")
-        
-        -- Prompt client to select hero if not yet assigned
-        local currentHero = character:GetAttribute("HeroId")
-        if not currentHero then
-            task.delay(0.5, function()
+
+        -- Delay slightly to check if auto-spawner has already claimed the character
+        task.delay(0.6, function()
+            if not character or not character.Parent then return end
+            local currentHero = character:GetAttribute("HeroId")
+            if not currentHero then
                 openHeroSelectionEvent:FireClient(player)
-            end)
-        end
+            end
+        end)
     end)
 end
 

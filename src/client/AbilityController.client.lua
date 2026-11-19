@@ -2,6 +2,7 @@
 --[[
     AbilityController.client.lua
     Client-side ability trigger handling, cooldown prediction, and visual effect rendering.
+    Syncs cast animations with AnimationController.
 ]]
 
 local Players = game:GetService("Players")
@@ -149,7 +150,22 @@ UserInputService.InputBegan:Connect(function(input, gameProcessed)
 
                 -- Send cast request to server
                 castAbilityEvent:FireServer(abilityId, targetPos)
-                print(string.format("[AbilityController] Requesting cast: %s (%s)", spec.name, abilityId))
+
+                -- Play matching character animation track if loaded
+                local character = player.Character
+                if character and spec.animationKey then
+                    local humanoid = character:FindFirstChildOfClass("Humanoid")
+                    local animator = humanoid and humanoid:FindFirstChildOfClass("Animator")
+                    if animator then
+                        local anim = Instance.new("Animation")
+                        anim.AnimationId = characterConfig.animations[spec.animationKey] or characterConfig.animations["Attack"]
+                        local track = animator:LoadAnimation(anim)
+                        track.Priority = Enum.AnimationPriority.Action2
+                        track:Play(0.08)
+                    end
+                end
+
+                print(string.format("[AbilityController] Executed: %s (%s)", spec.name, abilityId))
             else
                 print(string.format("[AbilityController] %s is on cooldown.", spec.name))
             end
