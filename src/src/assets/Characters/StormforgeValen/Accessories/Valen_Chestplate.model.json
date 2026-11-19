@@ -1,0 +1,87 @@
+{
+  "ClassName": "Accessory",
+  "Properties": {
+    "AccessoryType": "Front"
+  },
+  "Children": [
+    {
+      "ClassName": "Part",
+      "Name": "Handle",
+      "Properties": {
+        "Size": [2.2, 1.7, 1.15],
+        "Color": [0.84, 0.88, 0.92],
+        "Material": "Metal",
+        "CanCollide": false,
+        "Massless": true
+      },
+      "Children": [
+        {
+          "ClassName": "Attachment",
+          "Name": "BodyFrontAttachment",
+          "Properties": {
+            "CFrame": [0, 0, -0.6, 1, 0, 0, 0, 1, 0, 0, 0, 1]
+          }
+        },
+        {
+          "ClassName": "WeldConstraint",
+          "Name": "EmblemWeld"
+        },
+        {
+          "ClassName": "WeldConstraint",
+          "Name": "LeftFlankWeld"
+        },
+        {
+          "ClassName": "WeldConstraint",
+          "Name": "RightFlankWeld"
+        }
+      ]
+    },
+    {
+      "ClassName": "Part",
+      "Name": "StormCrownEmblem",
+      "Properties": {
+        "Size": [0.75, 0.75, 0.12],
+        "CFrame": [0, 0.25, -0.62, 1, 0, 0, 0, 1, 0, 0, 0, 1],
+        "Color": [0.25, 0.88, 1.0],
+        "Material": "Neon",
+        "CanCollide": false,
+        "Massless": true
+      },
+      "Children": [
+        {
+          "ClassName": "PointLight",
+          "Name": "CrownGlow",
+          "Properties": {
+            "Color": [0.25, 0.88, 1.0],
+            "Brightness": 1.2,
+            "Range": 6
+          }
+        }
+      ]
+    },
+    {
+      "ClassName": "Part",
+      "Name": "NavyFlankPlateLeft",
+      "Properties": {
+        "Size": [0.45, 1.5, 0.2],
+        "CFrame": [-0.85, -0.1, -0.6, 0.98, 0, 0.17, 0, 1, 0, -0.17, 0, 0.98],
+        "Color": [0.08, 0.13, 0.22],
+        "Material": "Metal",
+        "CanCollide": false,
+        "Massless": true
+      }
+    },
+    {
+      "ClassName": "Part",
+      "Name": "NavyFlankPlateRight",
+      "Properties": {
+        "Size": [0.45, 1.5, 0.2],
+        "CFrame": [0.85, -0.1, -0.6, 0.98, 0, -0.17, 0, 1, 0, 0.17, 0, 0.98],
+        "Color": [0.08, 0.13, 0.22],
+        "Material": "Metal",
+        "CanCollide": false,
+        "Massless": true
+      }
+    }
+  ]
+}

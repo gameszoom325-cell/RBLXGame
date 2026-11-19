@@ -25,6 +25,33 @@
       "Systems": {
         "$className": "Folder",
         "$path": "src/systems"
+      },
+      "Network": {
+        "$className": "Folder",
+        "SelectHero": {
+          "$className": "RemoteFunction"
+        },
+        "HeroLoaded": {
+          "$className": "RemoteEvent"
+        },
+        "OpenHeroSelection": {
+          "$className": "RemoteEvent"
+        },
+        "CastAbility": {
+          "$className": "RemoteEvent"
+        },
+        "ReplicateAbilityVFX": {
+          "$className": "RemoteEvent"
+        },
+        "ZoneChanged": {
+          "$className": "RemoteEvent"
+        },
+        "QuestUpdated": {
+          "$className": "RemoteEvent"
+        },
+        "RewardClaimed": {
+          "$className": "RemoteEvent"
+        }
       }
     },
 
