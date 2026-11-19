@@ -16,6 +16,7 @@ local networkFolder = ReplicatedStorage:WaitForChild("Network")
 local zoneChangedEvent = networkFolder:WaitForChild("ZoneChanged") :: RemoteEvent
 local questUpdatedEvent = networkFolder:WaitForChild("QuestUpdated") :: RemoteEvent
 local rewardClaimedEvent = networkFolder:WaitForChild("RewardClaimed") :: RemoteEvent
+local showDialogueEvent = networkFolder:WaitForChild("ShowDialogue") :: RemoteEvent
 
 -- Construct Master World GUI
 local function createWorldGui(): ScreenGui
@@ -144,6 +145,72 @@ local function createWorldGui(): ScreenGui
             row.Text = string.format("• %s: (%d/%d)", title, current, target)
             row.TextColor3 = Color3.fromRGB(220, 230, 245)
         end
+    end)
+
+    -- 3. Interactive Dialogue Frame (Bottom Center)
+    local dialogueBox = Instance.new("Frame")
+    dialogueBox.Name = "DialogueBox"
+    dialogueBox.Size = UDim2.new(0, 520, 0, 95)
+    dialogueBox.Position = UDim2.new(0.5, -260, 0.78, 0)
+    dialogueBox.BackgroundColor3 = Color3.fromRGB(15, 22, 34)
+    dialogueBox.BackgroundTransparency = 1
+    dialogueBox.BorderSizePixel = 0
+    dialogueBox.Parent = screenGui
+
+    local dCorner = Instance.new("UICorner")
+    dCorner.CornerRadius = UDim.new(0, 10)
+    dCorner.Parent = dialogueBox
+
+    local dStroke = Instance.new("UIStroke")
+    dStroke.Color = Color3.fromRGB(65, 225, 255)
+    dStroke.Thickness = 1.5
+    dStroke.Transparency = 1
+    dStroke.Parent = dialogueBox
+
+    local speakerLabel = Instance.new("TextLabel")
+    speakerLabel.Name = "SpeakerLabel"
+    speakerLabel.Size = UDim2.new(1, -24, 0, 26)
+    speakerLabel.Position = UDim2.new(0, 12, 0, 8)
+    speakerLabel.BackgroundTransparency = 1
+    speakerLabel.Font = Enum.Font.GothamBold
+    speakerLabel.TextSize = 14
+    speakerLabel.TextColor3 = Color3.fromRGB(65, 225, 255)
+    speakerLabel.TextTransparency = 1
+    speakerLabel.TextXAlignment = Enum.TextXAlignment.Left
+    speakerLabel.Parent = dialogueBox
+
+    local speechLabel = Instance.new("TextLabel")
+    speechLabel.Name = "SpeechLabel"
+    speechLabel.Size = UDim2.new(1, -24, 0, 50)
+    speechLabel.Position = UDim2.new(0, 12, 0, 36)
+    speechLabel.BackgroundTransparency = 1
+    speechLabel.Font = Enum.Font.Gotham
+    speechLabel.TextSize = 13
+    speechLabel.TextColor3 = Color3.fromRGB(235, 242, 255)
+    speechLabel.TextTransparency = 1
+    speechLabel.TextWrapped = true
+    speechLabel.TextXAlignment = Enum.TextXAlignment.Left
+    speechLabel.TextYAlignment = Enum.TextYAlignment.Top
+    speechLabel.Parent = dialogueBox
+
+    -- Handle Dialogue Events
+    showDialogueEvent.OnClientEvent:Connect(function(speakerName: string, message: string, titleTag: string?)
+        speakerLabel.Text = string.format("%s%s", speakerName, if titleTag then string.format(" [%s]", titleTag) else "")
+        speechLabel.Text = message
+
+        -- Fade In Dialogue Box
+        TweenService:Create(dialogueBox, TweenInfo.new(0.25), { BackgroundTransparency = 0.15 }):Play()
+        TweenService:Create(dStroke, TweenInfo.new(0.25), { Transparency = 0 }):Play()
+        TweenService:Create(speakerLabel, TweenInfo.new(0.25), { TextTransparency = 0 }):Play()
+        TweenService:Create(speechLabel, TweenInfo.new(0.25), { TextTransparency = 0 }):Play()
+
+        -- Auto fade out after reading duration
+        task.delay(5.5, function()
+            TweenService:Create(dialogueBox, TweenInfo.new(0.4), { BackgroundTransparency = 1 }):Play()
+            TweenService:Create(dStroke, TweenInfo.new(0.4), { Transparency = 1 }):Play()
+            TweenService:Create(speakerLabel, TweenInfo.new(0.4), { TextTransparency = 1 }):Play()
+            TweenService:Create(speechLabel, TweenInfo.new(0.4), { TextTransparency = 1 }):Play()
+        end)
     end)
 
     -- Handle Reward Notification

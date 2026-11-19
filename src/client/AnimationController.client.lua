@@ -13,6 +13,9 @@ local Shared = ReplicatedStorage:WaitForChild("Shared")
 local Types = require(Shared:WaitForChild("Types"))
 local CharacterRegistry = require(Shared:WaitForChild("CharacterRegistry"))
 
+local networkFolder = ReplicatedStorage:WaitForChild("Network")
+local weaponAttackEvent = networkFolder:WaitForChild("WeaponAttack") :: RemoteEvent
+
 local player = Players.LocalPlayer
 local loadedTracks: { [string]: AnimationTrack } = {}
 
@@ -98,6 +101,7 @@ local function bindCharacterAnimationEvents(character: Model)
     local function hookTool(tool: Tool)
         local actConn = tool.Activated:Connect(function()
             AnimationController.PlayTrack("Attack", 0.05)
+            weaponAttackEvent:FireServer()
         end)
         table.insert(movementConnections, actConn)
     end

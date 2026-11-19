@@ -92,8 +92,13 @@ local function createDebugPanel(): ScreenGui
     local statsRow = createStatusRow("StatsRow", 6)
     local promptRow = createStatusRow("PromptRow", 7)
 
-    -- Live update loop
+    -- Throttled live update loop (4 updates/sec instead of 144 FPS churn)
+    local lastUpdate = 0
     RunService.RenderStepped:Connect(function()
+        local now = os.clock()
+        if now - lastUpdate < 0.25 then return end
+        lastUpdate = now
+
         local character = player.Character
         if not character then
             heroStatus.Text = "Character: [WAITING FOR SPAWN...]"

@@ -9,6 +9,7 @@
 local Workspace = game:GetService("Workspace")
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local ProximityPromptService = game:GetService("ProximityPromptService")
 
 local World = ReplicatedStorage:WaitForChild("World")
 local Systems = ReplicatedStorage:WaitForChild("Systems")
@@ -16,49 +17,33 @@ local Systems = ReplicatedStorage:WaitForChild("Systems")
 local LobbyBuilder = require(World:WaitForChild("Lobby"):WaitForChild("LobbyBuilder"))
 local TempestWildsBuilder = require(World:WaitForChild("Zones"):WaitForChild("TempestWildsBuilder"))
 local AtmosphereController = require(World:WaitForChild("Environment"):WaitForChild("AtmosphereController"))
+local NPCConfig = require(World:WaitForChild("NPCs"):WaitForChild("NPCConfig"))
 local ZoneManager = require(Systems:WaitForChild("ZoneManager"))
 local EnemyManager = require(Systems:WaitForChild("EnemyManager"))
 local QuestManager = require(Systems:WaitForChild("QuestManager"))
 
 local networkFolder = ReplicatedStorage:WaitForChild("Network")
-local castAbilityEvent = networkFolder:WaitForChild("CastAbility") :: RemoteEvent
+local showDialogueEvent = networkFolder:WaitForChild("ShowDialogue") :: RemoteEvent
 
--- Radius damage utility for abilities against enemies in Workspace
-local function applyRadiusDamage(centerPos: Vector3, radius: number, damage: number, attacker: Player)
-    for _, item in ipairs(Workspace:GetChildren()) do
-        if item:IsA("Model") and item:FindFirstChildOfClass("Humanoid") then
-            -- Skip player characters
-            if not Players:GetPlayerFromCharacter(item) then
-                local root = item.PrimaryPart or item:FindFirstChild("Torso") :: BasePart?
-                if root and (root.Position - centerPos).Magnitude <= radius then
-                    EnemyManager.TakeDamage(item, damage, attacker)
-                end
-            end
-        end
-    end
-end
+-- Server hook for NPC and Quest Board interactions
+local function hookNPCInteractions()
+    ProximityPromptService.PromptTriggered:Connect(function(prompt: ProximityPrompt, player: Player)
+        local parentModel = prompt.Parent and prompt.Parent.Parent
+        local modelName = parentModel and parentModel.Name
 
-local function hookCombatToQuests()
-    -- Listen to ability casts to trigger radius damage & quest progress
-    castAbilityEvent.OnServerEvent:Connect(function(player: Player, abilityId: any, targetPos: any)
-        if typeof(abilityId) ~= "string" then return end
-
-        -- Progress ability casting quest
-        QuestManager.ProgressObjective(player, "CastAbility", 1)
-
-        local character = player.Character
-        local hrp = character and character:FindFirstChild("HumanoidRootPart") :: BasePart?
-        if not hrp then return end
-
-        if abilityId == "LightningStrike" then
-            local strikeLoc = if typeof(targetPos) == "Vector3" then targetPos else (hrp.Position + hrp.CFrame.LookVector * 20)
-            task.delay(0.1, function()
-                applyRadiusDamage(strikeLoc, 14, 90, player)
-            end)
-        elseif abilityId == "ThunderHammerSlam" then
-            task.delay(0.2, function()
-                applyRadiusDamage(hrp.Position, 16, 125, player)
-            end)
+        if modelName == "Archivist Orin" then
+            local npcData = NPCConfig.ArchivistOrin
+            showDialogueEvent:FireClient(player, npcData.name, npcData.dialogueGreeting, "Keeper of Records")
+            print(string.format("[WorldService] %s interacted with %s", player.Name, npcData.name))
+        elseif modelName == "Instructor Kael" then
+            local npcData = NPCConfig.InstructorKael
+            showDialogueEvent:FireClient(player, npcData.name, npcData.dialogueGreeting, "Master-at-Arms")
+            print(string.format("[WorldService] %s interacted with %s", player.Name, npcData.name))
+        elseif prompt.ObjectText == "Grand Quest Board" or (prompt.Parent and prompt.Parent.Name == "BoardPost") then
+            -- Review and claim any ready quest rewards
+            local msg = "All active assignments are synchronized. Defeat Tempest Drones and channel your storm abilities to earn XP and Gold!"
+            showDialogueEvent:FireClient(player, "Grand Quest Board", msg, "Sanctuary Bulletin")
+            print(string.format("[WorldService] %s reviewed the Grand Quest Board", player.Name))
         end
     end)
 end
@@ -83,8 +68,8 @@ local function initWorld()
         EnemyManager.InitNodes()
     end)
 
-    -- 6. Hook Combat & Ability events to Quests
-    hookCombatToQuests()
+    -- 6. Hook NPC and Quest Board ProximityPrompt interactions
+    hookNPCInteractions()
 
     print("[WorldService] World foundation and game loop successfully active.")
 end

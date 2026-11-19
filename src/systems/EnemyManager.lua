@@ -127,28 +127,44 @@ function EnemyManager.SpawnEnemy(enemyType: string, position: Vector3): Model
 end
 
 function EnemyManager.TakeDamage(enemy: Model, damage: number, attacker: Player?)
-    local data = activeEnemies[enemy]
-    if not data then return end
-
     local humanoid = enemy:FindFirstChildOfClass("Humanoid")
     if not humanoid or humanoid.Health <= 0 then return end
 
+    local data = activeEnemies[enemy]
+
     humanoid:TakeDamage(damage)
-    data.currentHp = humanoid.Health
 
-    -- Update health bar fill
-    local bb = enemy:FindFirstChild("EnemyHealthBar", true) :: BillboardGui?
-    if bb then
-        local bg = bb:FindFirstChild("Background") :: Frame?
-        local fill = bg and bg:FindFirstChild("Fill") :: Frame?
-        if fill then
-            fill.Size = UDim2.new(math.clamp(humanoid.Health / data.maxHp, 0, 1), 0, 1, 0)
+    if data then
+        data.currentHp = humanoid.Health
+
+        -- Update health bar fill
+        local bb = enemy:FindFirstChild("EnemyHealthBar", true) :: BillboardGui?
+        if bb then
+            local bg = bb:FindFirstChild("Background") :: Frame?
+            local fill = bg and bg:FindFirstChild("Fill") :: Frame?
+            if fill then
+                fill.Size = UDim2.new(math.clamp(humanoid.Health / data.maxHp, 0, 1), 0, 1, 0)
+            end
         end
-    end
 
-    if humanoid.Health <= 0 and attacker then
-        QuestManager.ProgressObjective(attacker, "KillEnemy", 1)
-        print(string.format("[EnemyManager] %s defeated %s!", attacker.Name, data.enemyType))
+        -- Ensure kill objective progress and defeat sequence fire exactly once
+        if humanoid.Health <= 0 and not enemy:GetAttribute("IsDead") then
+            enemy:SetAttribute("IsDead", true)
+            if attacker then
+                QuestManager.ProgressObjective(attacker, "KillEnemy", 1)
+                print(string.format("[EnemyManager] %s defeated %s!", attacker.Name, data.enemyType))
+            end
+            EnemyManager.OnEnemyDefeated(enemy)
+        end
+    else
+        -- Support for Training Dummies or non-node targets in workspace
+        if humanoid.Health <= 0 then
+            task.delay(1.5, function()
+                if humanoid and humanoid.Parent then
+                    humanoid.Health = humanoid.MaxHealth
+                end
+            end)
+        end
     end
 end
 

@@ -9,6 +9,7 @@
 local Workspace = game:GetService("Workspace")
 
 local ARENA_FOLDER_NAME = "StormforgeTestArena"
+local ARENA_CENTER = Vector3.new(0, 0, -180)
 
 local function buildArena()
     local existingArena = Workspace:FindFirstChild(ARENA_FOLDER_NAME)
@@ -20,11 +21,11 @@ local function buildArena()
     arena.Name = ARENA_FOLDER_NAME
     arena.Parent = Workspace
 
-    -- 1. Main Testing Arena Floor
+    -- 1. Main Testing Arena Floor (Combat Proving Grounds)
     local floor = Instance.new("Part")
     floor.Name = "ArenaFloor"
     floor.Size = Vector3.new(140, 2, 140)
-    floor.CFrame = CFrame.new(0, -1, 0)
+    floor.CFrame = CFrame.new(ARENA_CENTER + Vector3.new(0, -1, 0))
     floor.Color = Color3.fromRGB(24, 30, 42)
     floor.Material = Enum.Material.Concrete
     floor.Anchored = true
@@ -42,7 +43,7 @@ local function buildArena()
     local spawn = Instance.new("SpawnLocation")
     spawn.Name = "HeroSpawnPoint"
     spawn.Size = Vector3.new(12, 1, 12)
-    spawn.CFrame = CFrame.new(0, 0.5, 0)
+    spawn.CFrame = CFrame.new(ARENA_CENTER + Vector3.new(0, 0.5, 0))
     spawn.Color = Color3.fromRGB(18, 24, 36)
     spawn.Material = Enum.Material.Metal
     spawn.Anchored = true
@@ -54,7 +55,7 @@ local function buildArena()
     spawnRing.Name = "SpawnNeonRing"
     spawnRing.Shape = Enum.PartType.Cylinder
     spawnRing.Size = Vector3.new(0.2, 10, 10)
-    spawnRing.CFrame = CFrame.new(0, 1.05, 0) * CFrame.Angles(0, 0, math.rad(90))
+    spawnRing.CFrame = CFrame.new(ARENA_CENTER + Vector3.new(0, 1.05, 0)) * CFrame.Angles(0, 0, math.rad(90))
     spawnRing.Color = Color3.fromRGB(65, 225, 255)
     spawnRing.Material = Enum.Material.Neon
     spawnRing.Anchored = true
@@ -65,7 +66,7 @@ local function buildArena()
     local camPlatform = Instance.new("Part")
     camPlatform.Name = "CameraObservationPad"
     camPlatform.Size = Vector3.new(10, 6, 10)
-    camPlatform.CFrame = CFrame.new(0, 3, -35)
+    camPlatform.CFrame = CFrame.new(ARENA_CENTER + Vector3.new(0, 3, -35))
     camPlatform.Color = Color3.fromRGB(35, 45, 62)
     camPlatform.Material = Enum.Material.SmoothPlastic
     camPlatform.Anchored = true
@@ -92,7 +93,7 @@ local function buildArena()
         local pillar = Instance.new("Part")
         pillar.Name = string.format("DistanceMarker_%d_Studs", distance)
         pillar.Size = Vector3.new(1.5, 8, 1.5)
-        pillar.CFrame = CFrame.new(0, 4, distance)
+        pillar.CFrame = CFrame.new(ARENA_CENTER + Vector3.new(0, 4, distance))
         pillar.Color = Color3.fromRGB(30, 40, 58)
         pillar.Material = Enum.Material.Metal
         pillar.Anchored = true
@@ -103,7 +104,7 @@ local function buildArena()
         beacon.Name = "Beacon"
         beacon.Shape = Enum.PartType.Ball
         beacon.Size = Vector3.new(1.8, 1.8, 1.8)
-        beacon.CFrame = CFrame.new(0, 8.5, distance)
+        beacon.CFrame = CFrame.new(ARENA_CENTER + Vector3.new(0, 8.5, distance))
         beacon.Color = Color3.fromRGB(65, 225, 255)
         beacon.Material = Enum.Material.Neon
         beacon.Anchored = true
@@ -174,11 +175,54 @@ local function buildArena()
         dummy.Parent = arena
     end
 
-    createTargetDummy("TrainingDummy_Left", Vector3.new(-12, 1.5, 25))
-    createTargetDummy("TrainingDummy_Center", Vector3.new(0, 1.5, 30))
-    createTargetDummy("TrainingDummy_Right", Vector3.new(12, 1.5, 25))
+    createTargetDummy("TrainingDummy_Left", ARENA_CENTER + Vector3.new(-12, 1.5, 25))
+    createTargetDummy("TrainingDummy_Center", ARENA_CENTER + Vector3.new(0, 1.5, 30))
+    createTargetDummy("TrainingDummy_Right", ARENA_CENTER + Vector3.new(12, 1.5, 25))
 
-    print("[TestArenaBuilder] Developer test environment constructed with targets and distance markers.")
+    -- 6. Return Portal to Grand Sanctuary Lobby
+    local returnPortal = Instance.new("Model")
+    returnPortal.Name = "TrainingReturnPortal"
+
+    local retBase = Instance.new("Part")
+    retBase.Name = "ReturnBase"
+    retBase.Size = Vector3.new(12, 1, 10)
+    retBase.CFrame = CFrame.new(ARENA_CENTER + Vector3.new(0, 0.5, -55))
+    retBase.Color = Color3.fromRGB(25, 35, 50)
+    retBase.Material = Enum.Material.Metal
+    retBase.Anchored = true
+    retBase.CanCollide = true
+    retBase.Parent = returnPortal
+
+    local retGate = Instance.new("Part")
+    retGate.Name = "TeleportGatePart"
+    retGate.Shape = Enum.PartType.Cylinder
+    retGate.Size = Vector3.new(0.4, 10, 10)
+    retGate.CFrame = CFrame.new(ARENA_CENTER + Vector3.new(0, 6, -55))
+    retGate.Color = Color3.fromRGB(255, 195, 45)
+    retGate.Material = Enum.Material.Neon
+    retGate.Transparency = 0.35
+    retGate.Anchored = true
+    retGate.CanCollide = false
+    retGate:SetAttribute("TargetZone", "Lobby")
+    retGate.Parent = returnPortal
+
+    local billboard = Instance.new("BillboardGui")
+    billboard.Size = UDim2.new(0, 220, 0, 40)
+    billboard.StudsOffset = Vector3.new(0, 6.5, 0)
+    billboard.AlwaysOnTop = true
+    local text = Instance.new("TextLabel")
+    text.Size = UDim2.new(1, 0, 1, 0)
+    text.BackgroundTransparency = 1
+    text.Text = "RETURN TO SANCTUARY"
+    text.TextColor3 = Color3.fromRGB(255, 195, 45)
+    text.Font = Enum.Font.GothamBold
+    text.TextSize = 14
+    text.Parent = billboard
+    billboard.Parent = retGate
+
+    returnPortal.Parent = arena
+
+    print("[TestArenaBuilder] Combat Proving Grounds constructed at dedicated zone coordinates (Z = -180).")
 end
 
 buildArena()

@@ -107,6 +107,7 @@ function QuestManager.ProgressObjective(player: Player, objectiveType: string, a
             if progress.currentCount >= progress.targetCount then
                 progress.isCompleted = true
                 print(string.format("[QuestManager] Player %s completed objective for '%s'!", player.Name, def.title))
+                QuestManager.ClaimReward(player, questId)
             end
             questUpdatedEvent:FireClient(player, questId, def.title, progress.currentCount, progress.targetCount, progress.isCompleted)
         end
@@ -141,6 +142,13 @@ function QuestManager.ClaimReward(player: Player, questId: string): boolean
     print(string.format("[QuestManager] Player %s claimed rewards for '%s' (+%d Gold, +%d XP)", player.Name, def.title, def.rewards.gold, def.rewards.xp))
     return true
 end
+
+-- Allow client-initiated reward claims (e.g. from UI or Quest Board)
+rewardClaimedEvent.OnServerEvent:Connect(function(player: Player, questId: any)
+    if typeof(questId) == "string" then
+        QuestManager.ClaimReward(player, questId)
+    end
+end)
 
 Players.PlayerAdded:Connect(initPlayer)
 for _, p in ipairs(Players:GetPlayers()) do

@@ -13,9 +13,12 @@ local Workspace = game:GetService("Workspace")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Shared = ReplicatedStorage:WaitForChild("Shared")
+local Systems = ReplicatedStorage:WaitForChild("Systems")
 local Types = require(Shared:WaitForChild("Types"))
 local AbilityConfig = require(Shared:WaitForChild("AbilityConfig"))
 local CharacterRegistry = require(Shared:WaitForChild("CharacterRegistry"))
+local EnemyManager = require(Systems:WaitForChild("EnemyManager"))
+local QuestManager = require(Systems:WaitForChild("QuestManager"))
 
 local networkFolder = ReplicatedStorage:WaitForChild("Network")
 local castAbilityEvent = networkFolder:WaitForChild("CastAbility") :: RemoteEvent
@@ -27,6 +30,21 @@ local playerCooldowns: { [number]: { [string]: number } } = {}
 -- Security Constants
 local MAX_LIGHTNING_STRIKE_DISTANCE = 60.0
 local MAX_LIGHTNING_DASH_DISTANCE = 30.0
+
+-- Radius damage utility for abilities against enemies in Workspace
+local function applyRadiusDamage(centerPos: Vector3, radius: number, damage: number, attacker: Player)
+    for _, item in ipairs(Workspace:GetDescendants()) do
+        if item:IsA("Model") and item:FindFirstChildOfClass("Humanoid") then
+            -- Skip player characters
+            if not Players:GetPlayerFromCharacter(item) then
+                local root = item.PrimaryPart or item:FindFirstChild("HumanoidRootPart") or item:FindFirstChild("Torso") :: BasePart?
+                if root and (root.Position - centerPos).Magnitude <= radius then
+                    EnemyManager.TakeDamage(item, damage, attacker)
+                end
+            end
+        end
+    end
+end
 
 -- Secure validation of ability request
 local function validateAbilityCast(player: Player, abilityId: Types.AbilityId): (boolean, Types.AbilitySpec?)
@@ -98,6 +116,11 @@ local AbilityExecutors: { [Types.AbilityId]: (player: Player, character: Model, 
             color = Color3.fromRGB(65, 225, 255),
         })
 
+        -- Server-authoritative radius damage at validated strike position
+        task.delay(0.1, function()
+            applyRadiusDamage(strikePos, 14, 90, player)
+        end)
+
         print(string.format("[AbilityService] %s cast %s at validated position %s", player.Name, spec.name, tostring(strikePos)))
     end,
 
@@ -110,6 +133,11 @@ local AbilityExecutors: { [Types.AbilityId]: (player: Player, character: Model, 
             color = Color3.fromRGB(80, 240, 255),
             radius = 16,
         })
+
+        -- Server-authoritative shockwave damage around caster
+        task.delay(0.2, function()
+            applyRadiusDamage(hrp.Position, 16, 125, player)
+        end)
 
         print(string.format("[AbilityService] %s cast %s", player.Name, spec.name))
     end,
@@ -170,6 +198,9 @@ castAbilityEvent.OnServerEvent:Connect(function(player: Player, abilityId: any, 
 
     local valid, spec = validateAbilityCast(player, abilityId)
     if valid and spec then
+        -- Progress quest objective for validated cast
+        QuestManager.ProgressObjective(player, "CastAbility", 1)
+
         local executor = AbilityExecutors[abilityId]
         if executor and player.Character then
             executor(player, player.Character, spec, if typeof(targetPos) == "Vector3" then targetPos else nil)

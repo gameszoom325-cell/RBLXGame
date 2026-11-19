@@ -43,6 +43,12 @@
         "ReplicateAbilityVFX": {
           "$className": "RemoteEvent"
         },
+        "WeaponAttack": {
+          "$className": "RemoteEvent"
+        },
+        "ShowDialogue": {
+          "$className": "RemoteEvent"
+        },
         "ZoneChanged": {
           "$className": "RemoteEvent"
         },

@@ -40,7 +40,7 @@ local ZoneConfig: { [string]: ZoneData } = {
         name = "TrainingSanctuary",
         displayName = "Hero Combat Proving Grounds",
         description = "Reinforced testing arena featuring automated target dummies and range markers.",
-        spawnCFrame = CFrame.new(0, 3, -80),
+        spawnCFrame = CFrame.new(0, 3, -180),
         isSafeZone = true,
         ambientColor = Color3.fromRGB(30, 40, 60),
     },
