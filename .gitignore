@@ -1,0 +1,24 @@
+# Roblox Place & Model Binary / XML Exports
+*.rbxl
+*.rbxlx
+*.rbxm
+*.rbxmx
+
+# Rojo & Sourcemap Files
+sourcemap.json
+.rojo/
+
+# Build & Temporary Files
+build/
+*.tmp
+temp/
+*.log
+
+# Package Managers
+node_modules/
+.aftman/
+.foreman/
+
+# OS Specific
+.DS_Store
+Thumbs.db
