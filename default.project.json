@@ -17,6 +17,14 @@
       "Assets": {
         "$className": "Folder",
         "$path": "src/assets"
+      },
+      "World": {
+        "$className": "Folder",
+        "$path": "src/world"
+      },
+      "Systems": {
+        "$className": "Folder",
+        "$path": "src/systems"
       }
     },
 
