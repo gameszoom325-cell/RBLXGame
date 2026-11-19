@@ -2,11 +2,14 @@
 --[[
     AbilityService.server.lua
     Server-authoritative hero ability pipeline.
-    Validates cooldowns, energy/resource limits, performs raycasting/hitboxes,
-    and replicates VFX events to all clients.
+    Production security fixes:
+      - Lightning Strike: Maximum 60-stud server range validation check.
+      - Lightning Dash: Safe raycasted translation preventing wall-clipping and teleport exploits.
+      - Static Network architecture (no dynamic creation race conditions).
 ]]
 
 local Players = game:GetService("Players")
+local Workspace = game:GetService("Workspace")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Shared = ReplicatedStorage:WaitForChild("Shared")
@@ -15,22 +18,15 @@ local AbilityConfig = require(Shared:WaitForChild("AbilityConfig"))
 local CharacterRegistry = require(Shared:WaitForChild("CharacterRegistry"))
 
 local networkFolder = ReplicatedStorage:WaitForChild("Network")
-
-local function getOrCreateRemoteEvent(name: string): RemoteEvent
-    local event = networkFolder:FindFirstChild(name) :: RemoteEvent
-    if not event then
-        event = Instance.new("RemoteEvent")
-        event.Name = name
-        event.Parent = networkFolder
-    end
-    return event
-end
-
-local castAbilityEvent = getOrCreateRemoteEvent("CastAbility")
-local abilityVFXEvent = getOrCreateRemoteEvent("ReplicateAbilityVFX")
+local castAbilityEvent = networkFolder:WaitForChild("CastAbility") :: RemoteEvent
+local abilityVFXEvent = networkFolder:WaitForChild("ReplicateAbilityVFX") :: RemoteEvent
 
 -- Track player ability cooldown timestamps: [UserId][AbilityId] = lastUsedTime
 local playerCooldowns: { [number]: { [string]: number } } = {}
+
+-- Security Constants
+local MAX_LIGHTNING_STRIKE_DISTANCE = 60.0
+local MAX_LIGHTNING_DASH_DISTANCE = 30.0
 
 -- Secure validation of ability request
 local function validateAbilityCast(player: Player, abilityId: Types.AbilityId): (boolean, Types.AbilitySpec?)
@@ -76,11 +72,23 @@ local function validateAbilityCast(player: Player, abilityId: Types.AbilityId): 
     return true, spec
 end
 
--- Ability Execution Handlers
+-- Ability Execution Handlers with Security Checks
 local AbilityExecutors: { [Types.AbilityId]: (player: Player, character: Model, spec: Types.AbilitySpec, targetPos: Vector3?) -> () } = {
     LightningStrike = function(player, character, spec, targetPos)
         local hrp = character:FindFirstChild("HumanoidRootPart") :: BasePart
-        local strikePos = targetPos or (hrp.Position + hrp.CFrame.LookVector * 20)
+        local strikePos: Vector3
+
+        if targetPos and typeof(targetPos) == "Vector3" then
+            local offset = targetPos - hrp.Position
+            if offset.Magnitude > MAX_LIGHTNING_STRIKE_DISTANCE then
+                -- Clamp to maximum server range
+                strikePos = hrp.Position + (offset.Unit * MAX_LIGHTNING_STRIKE_DISTANCE)
+            else
+                strikePos = targetPos
+            end
+        else
+            strikePos = hrp.Position + (hrp.CFrame.LookVector * 20)
+        end
 
         -- Replicate VFX to all nearby clients
         abilityVFXEvent:FireAllClients("LightningStrike", {
@@ -90,8 +98,7 @@ local AbilityExecutors: { [Types.AbilityId]: (player: Player, character: Model, 
             color = Color3.fromRGB(65, 225, 255),
         })
 
-        -- Server-authoritative hitbox / radial damage check (Placeholder numbers)
-        print(string.format("[AbilityService] %s cast %s at %s", player.Name, spec.name, tostring(strikePos)))
+        print(string.format("[AbilityService] %s cast %s at validated position %s", player.Name, spec.name, tostring(strikePos)))
     end,
 
     ThunderHammerSlam = function(player, character, spec)
@@ -120,7 +127,29 @@ local AbilityExecutors: { [Types.AbilityId]: (player: Player, character: Model, 
     LightningDash = function(player, character, spec)
         local hrp = character:FindFirstChild("HumanoidRootPart") :: BasePart
         local forwardVector = hrp.CFrame.LookVector
-        local destination = hrp.Position + (forwardVector * 30)
+
+        -- Raycast obstacle detection to prevent wall-clipping and out-of-bounds exploits
+        local raycastParams = RaycastParams.new()
+        raycastParams.FilterDescendantsInstances = { character }
+        raycastParams.FilterType = Enum.RaycastFilterType.Exclude
+        raycastParams.IgnoreWater = true
+
+        local forwardRay = Workspace:Raycast(hrp.Position, forwardVector * MAX_LIGHTNING_DASH_DISTANCE, raycastParams)
+        local destination: Vector3
+
+        if forwardRay then
+            -- Stop 2 studs before the detected wall/obstacle
+            local safeDistance = math.max(0, forwardRay.Distance - 2.0)
+            destination = hrp.Position + (forwardVector * safeDistance)
+        else
+            destination = hrp.Position + (forwardVector * MAX_LIGHTNING_DASH_DISTANCE)
+        end
+
+        -- Downward raycast to snap destination cleanly to ground level
+        local groundRay = Workspace:Raycast(destination + Vector3.new(0, 5, 0), Vector3.new(0, -15, 0), raycastParams)
+        if groundRay then
+            destination = groundRay.Position + Vector3.new(0, hrp.Size.Y / 2, 0)
+        end
 
         abilityVFXEvent:FireAllClients("LightningDash", {
             caster = character,
@@ -129,9 +158,9 @@ local AbilityExecutors: { [Types.AbilityId]: (player: Player, character: Model, 
             color = Color3.fromRGB(110, 240, 255),
         })
 
-        -- Teleport / launch root part safely
+        -- Safely update CFrame to validated destination
         hrp.CFrame = CFrame.new(destination, destination + forwardVector)
-        print(string.format("[AbilityService] %s performed %s", player.Name, spec.name))
+        print(string.format("[AbilityService] %s safely dashed to %s", player.Name, tostring(destination)))
     end,
 }
 
@@ -152,4 +181,4 @@ Players.PlayerRemoving:Connect(function(player)
     playerCooldowns[player.UserId] = nil
 end)
 
-print("[AbilityService] Initialized successfully.")
+print("[AbilityService] Initialized with strict server-side range validation and raycasted dash security.")

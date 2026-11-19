@@ -4,6 +4,7 @@
     Server-authoritative Quest & Objective Tracking System:
     Handles quest assignment, progress tracking for kills and ability usage,
     and distributing gold and experience rewards.
+    Uses static ReplicatedStorage.Network architecture.
 ]]
 
 local Players = game:GetService("Players")
@@ -55,21 +56,10 @@ local Quests: { [string]: QuestDefinition } = {
 local playerQuests: { [number]: { [string]: PlayerQuestProgress } } = {}
 local playerStats: { [number]: { gold: number, xp: number, level: number } } = {}
 
--- Ensure Network Remotes exist
+-- Static Network Architecture
 local networkFolder = ReplicatedStorage:WaitForChild("Network")
-
-local function getOrCreateRemoteEvent(name: string): RemoteEvent
-    local ev = networkFolder:FindFirstChild(name) :: RemoteEvent
-    if not ev then
-        ev = Instance.new("RemoteEvent")
-        ev.Name = name
-        ev.Parent = networkFolder
-    end
-    return ev
-end
-
-local questUpdatedEvent = getOrCreateRemoteEvent("QuestUpdated")
-local rewardClaimedEvent = getOrCreateRemoteEvent("RewardClaimed")
+local questUpdatedEvent = networkFolder:WaitForChild("QuestUpdated") :: RemoteEvent
+local rewardClaimedEvent = networkFolder:WaitForChild("RewardClaimed") :: RemoteEvent
 
 local function initPlayer(player: Player)
     local userId = player.UserId

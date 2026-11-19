@@ -4,6 +4,7 @@
     Central World and Zone Management System:
     Tracks player locations, manages zone state transitions,
     and coordinates portal teleports between the Lobby, Wilds, and Training Arena.
+    Uses static ReplicatedStorage.Network architecture.
 ]]
 
 local Players = game:GetService("Players")
@@ -16,14 +17,9 @@ local ZoneConfig = require(WorldFolder:WaitForChild("Zones"):WaitForChild("ZoneC
 local ZoneManager = {}
 local playerCurrentZones: { [Player]: string } = {}
 
--- Ensure Network RemoteEvent exists for Zone transitions
+-- Static Network Architecture
 local networkFolder = ReplicatedStorage:WaitForChild("Network")
-local zoneChangedEvent = networkFolder:FindFirstChild("ZoneChanged") :: RemoteEvent
-if not zoneChangedEvent then
-    zoneChangedEvent = Instance.new("RemoteEvent")
-    zoneChangedEvent.Name = "ZoneChanged"
-    zoneChangedEvent.Parent = networkFolder
-end
+local zoneChangedEvent = networkFolder:WaitForChild("ZoneChanged") :: RemoteEvent
 
 function ZoneManager.GetPlayerZone(player: Player): string
     return playerCurrentZones[player] or "Lobby"

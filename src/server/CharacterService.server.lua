@@ -3,6 +3,7 @@
     CharacterService.server.lua
     Server-authoritative modular character loader and hero manager.
     Connects to CharacterLoader to spawn, morph, and equip heroes.
+    Uses static ReplicatedStorage.Network architecture.
 ]]
 
 local Players = game:GetService("Players")
@@ -16,36 +17,10 @@ local CharacterLoader = require(Shared:WaitForChild("CharacterLoader"))
 local CharacterService = {}
 local activePlayerCharacters: { [Player]: Types.CharacterId } = {}
 
--- Ensure Network folder and RemoteEvents exist
-local networkFolder = ReplicatedStorage:FindFirstChild("Network")
-if not networkFolder then
-    networkFolder = Instance.new("Folder")
-    networkFolder.Name = "Network"
-    networkFolder.Parent = ReplicatedStorage
-end
-
-local function getOrCreateRemoteEvent(name: string): RemoteEvent
-    local event = networkFolder:FindFirstChild(name) :: RemoteEvent
-    if not event then
-        event = Instance.new("RemoteEvent")
-        event.Name = name
-        event.Parent = networkFolder
-    end
-    return event
-end
-
-local function getOrCreateRemoteFunction(name: string): RemoteFunction
-    local remoteFunc = networkFolder:FindFirstChild(name) :: RemoteFunction
-    if not remoteFunc then
-        remoteFunc = Instance.new("RemoteFunction")
-        remoteFunc.Name = name
-        remoteFunc.Parent = networkFolder
-    end
-    return remoteFunc
-end
-
-local selectHeroFunction = getOrCreateRemoteFunction("SelectHero")
-local heroLoadedEvent = getOrCreateRemoteEvent("HeroLoaded")
+-- Static Network Architecture
+local networkFolder = ReplicatedStorage:WaitForChild("Network")
+local selectHeroFunction = networkFolder:WaitForChild("SelectHero") :: RemoteFunction
+local heroLoadedEvent = networkFolder:WaitForChild("HeroLoaded") :: RemoteEvent
 
 -- Core Character Loading Pipeline
 function CharacterService.LoadHero(player: Player, heroId: Types.CharacterId): boolean

@@ -3,6 +3,7 @@
     StormforgeValenConfig.lua
     Complete character configuration for Stormforge Valen.
     Legendary Lightning Warrior & Fantasy Hero.
+    Production fixes: verified attachment points for gauntlets, left boot, and right boot.
 ]]
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -92,16 +93,25 @@ local StormforgeValenConfig: Types.CharacterConfig = {
             id = "Valen_Gauntlets",
             name = "Conductor Gauntlets",
             attachmentPoint = "RightGripAttachment",
-            parentPart = "RightLowerArm",
+            parentPart = "RightHand",
             accessoryType = "Front",
             color = Color3.fromRGB(215, 225, 235),
             material = Enum.Material.Metal,
         },
-        ArmoredBoots = {
+        LeftBoot = {
             id = "Valen_Boots",
-            name = "Tempest Greaves",
+            name = "Tempest Left Greave",
             attachmentPoint = "LeftFootAttachment",
-            parentPart = "LeftLowerLeg",
+            parentPart = "LeftFoot",
+            accessoryType = "Front",
+            color = Color3.fromRGB(20, 32, 55),
+            material = Enum.Material.Metal,
+        },
+        RightBoot = {
+            id = "Valen_RightBoot",
+            name = "Tempest Right Greave",
+            attachmentPoint = "RightFootAttachment",
+            parentPart = "RightFoot",
             accessoryType = "Front",
             color = Color3.fromRGB(20, 32, 55),
             material = Enum.Material.Metal,

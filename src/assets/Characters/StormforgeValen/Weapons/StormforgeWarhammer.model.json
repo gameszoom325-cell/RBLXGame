@@ -23,22 +23,6 @@
           "Properties": {
             "CFrame": [0, -1.2, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1]
           }
-        },
-        {
-          "ClassName": "WeldConstraint",
-          "Name": "HeadLeftWeld"
-        },
-        {
-          "ClassName": "WeldConstraint",
-          "Name": "HeadRightWeld"
-        },
-        {
-          "ClassName": "WeldConstraint",
-          "Name": "CoreWeld"
-        },
-        {
-          "ClassName": "WeldConstraint",
-          "Name": "PommelWeld"
         }
       ]
     },

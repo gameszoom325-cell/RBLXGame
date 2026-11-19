@@ -3,6 +3,7 @@
     SpawnService.server.lua
     Manages player connection lifecycles, initial spawn sequences,
     and hero selection triggers.
+    Uses static ReplicatedStorage.Network architecture.
 ]]
 
 local Players = game:GetService("Players")
@@ -13,12 +14,7 @@ local Types = require(Shared:WaitForChild("Types"))
 local CharacterRegistry = require(Shared:WaitForChild("CharacterRegistry"))
 
 local networkFolder = ReplicatedStorage:WaitForChild("Network")
-local openHeroSelectionEvent = networkFolder:FindFirstChild("OpenHeroSelection") :: RemoteEvent
-if not openHeroSelectionEvent then
-    openHeroSelectionEvent = Instance.new("RemoteEvent")
-    openHeroSelectionEvent.Name = "OpenHeroSelection"
-    openHeroSelectionEvent.Parent = networkFolder
-end
+local openHeroSelectionEvent = networkFolder:WaitForChild("OpenHeroSelection") :: RemoteEvent
 
 -- Default spawn handling
 local function onPlayerAdded(player: Player)
@@ -44,4 +40,4 @@ for _, player in ipairs(Players:GetPlayers()) do
     task.spawn(onPlayerAdded, player)
 end
 
-print("[SpawnService] Initialized successfully.")
+print("[SpawnService] Initialized successfully with static Network architecture.")

@@ -2,7 +2,7 @@
 --[[
     AbilityController.client.lua
     Client-side ability trigger handling, cooldown prediction, and visual effect rendering.
-    Syncs cast animations with AnimationController.
+    Production fixes: Animation memory caching and track reuse (no memory leaks on cast).
 ]]
 
 local Players = game:GetService("Players")
@@ -22,6 +22,53 @@ local abilityVFXEvent = networkFolder:WaitForChild("ReplicateAbilityVFX") :: Rem
 
 local localCooldowns: { [string]: number } = {}
 local activeHeroId: string? = nil
+
+-- Animation Caching Pipeline (Prevents creating new Animation objects per cast)
+local cachedAbilityTracks: { [string]: AnimationTrack } = {}
+
+local function clearCachedTracks()
+    for _, track in pairs(cachedAbilityTracks) do
+        track:Stop(0.1)
+        track:Destroy()
+    end
+    table.clear(cachedAbilityTracks)
+end
+
+local function preloadHeroAbilityAnimations(heroId: string)
+    clearCachedTracks()
+
+    local config = CharacterRegistry.GetCharacter(heroId)
+    if not config then return end
+
+    local character = player.Character
+    if not character then return end
+
+    local humanoid = character:WaitForChild("Humanoid") :: Humanoid
+    local animator = humanoid:WaitForChild("Animator") :: Animator
+
+    for _, abilityId in ipairs(config.abilities) do
+        local spec = AbilityConfig[abilityId]
+        if spec and spec.animationKey then
+            local animAssetId = config.animations[spec.animationKey]
+            if animAssetId and not cachedAbilityTracks[spec.animationKey] then
+                local anim = Instance.new("Animation")
+                anim.Name = "AbilityAnim_" .. spec.animationKey
+                anim.AnimationId = animAssetId
+
+                local success, track = pcall(function()
+                    return animator:LoadAnimation(anim)
+                end)
+
+                if success and track then
+                    track.Priority = Enum.AnimationPriority.Action2
+                    cachedAbilityTracks[spec.animationKey] = track
+                end
+            end
+        end
+    end
+
+    print(string.format("[AbilityController] Preloaded & cached %d ability animation tracks for %s", #config.abilities, heroId))
+end
 
 -- Check if local cooldown has elapsed
 local function canCastLocally(abilityId: string, cooldown: number): boolean
@@ -43,7 +90,6 @@ local VFXHandlers = {
         beamPart.CanCollide = false
         beamPart.Parent = workspace
 
-        -- Quick flash and fade
         local tween = TweenService:Create(beamPart, TweenInfo.new(0.25, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
             Transparency = 1,
             Size = Vector3.new(0.1, 120, 0.1),
@@ -151,18 +197,9 @@ UserInputService.InputBegan:Connect(function(input, gameProcessed)
                 -- Send cast request to server
                 castAbilityEvent:FireServer(abilityId, targetPos)
 
-                -- Play matching character animation track if loaded
-                local character = player.Character
-                if character and spec.animationKey then
-                    local humanoid = character:FindFirstChildOfClass("Humanoid")
-                    local animator = humanoid and humanoid:FindFirstChildOfClass("Animator")
-                    if animator then
-                        local anim = Instance.new("Animation")
-                        anim.AnimationId = characterConfig.animations[spec.animationKey] or characterConfig.animations["Attack"]
-                        local track = animator:LoadAnimation(anim)
-                        track.Priority = Enum.AnimationPriority.Action2
-                        track:Play(0.08)
-                    end
+                -- Play cached reusable AnimationTrack (zero memory allocations)
+                if spec.animationKey and cachedAbilityTracks[spec.animationKey] then
+                    cachedAbilityTracks[spec.animationKey]:Play(0.08)
                 end
 
                 print(string.format("[AbilityController] Executed: %s (%s)", spec.name, abilityId))
@@ -182,12 +219,17 @@ abilityVFXEvent.OnClientEvent:Connect(function(vfxType: string, data: any)
     end
 end)
 
--- Update active hero upon server load confirmation
+-- Update active hero and preload cached tracks upon server load confirmation
 local heroLoadedEvent = networkFolder:WaitForChild("HeroLoaded") :: RemoteEvent
 heroLoadedEvent.OnClientEvent:Connect(function(heroId: string)
     activeHeroId = heroId
     table.clear(localCooldowns)
-    print(string.format("[AbilityController] Active hero set to %s. Abilities ready.", heroId))
+    preloadHeroAbilityAnimations(heroId)
+    print(string.format("[AbilityController] Active hero set to %s. Ability tracks cached.", heroId))
+end)
+
+player.CharacterRemoving:Connect(function()
+    clearCachedTracks()
 end)
 
 return {}

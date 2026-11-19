@@ -3,6 +3,7 @@
     CharacterLoader.lua
     Modular character builder, R15 rig assembler, and hero spawner.
     Supports procedural R15 creation, modular accessory welding, and weapon mounting.
+    Production fixes: avatar accessory stripping, network ownership, animation support, and anti-stacking.
 ]]
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -262,11 +263,14 @@ function CharacterLoader.BuildBaseR15Model(name: string?): Model
     createMotor6D("RightKnee", rightUpperLeg, rightLowerLeg, CFrame.new(0, -0.6, 0), CFrame.new(0, 0.6, 0))
     createMotor6D("RightAnkle", rightLowerLeg, rightFoot, CFrame.new(0, -0.6, 0), CFrame.new(0, 0.25, 0))
 
-    -- Humanoid Configuration
+    -- Humanoid Configuration with Animator
     local humanoid = Instance.new("Humanoid")
     humanoid.RigType = Enum.HumanoidRigType.R15
     humanoid.DisplayDistanceType = Enum.HumanoidDisplayDistanceType.Viewer
     humanoid.Parent = model
+
+    local animator = Instance.new("Animator")
+    animator.Parent = humanoid
 
     return model
 end
@@ -291,16 +295,29 @@ function CharacterLoader.ApplyScaling(humanoid: Humanoid, scaling: Types.R15Scal
     setScale("BodyProportionScale", scaling.proportions)
 end
 
--- Equips modular accessories onto the character
+-- Equips modular accessories onto the character with strict duplicate prevention
 function CharacterLoader.EquipAccessories(character: Model, config: Types.CharacterConfig)
     local humanoid = character:WaitForChild("Humanoid") :: Humanoid
 
+    -- Look for prebuilt assets in ReplicatedStorage.Assets if available
     local assetsFolder = ReplicatedStorage:FindFirstChild("Assets")
     local accessoriesFolder = assetsFolder and assetsFolder:FindFirstChild("Characters")
         and assetsFolder.Characters:FindFirstChild("StormforgeValen")
         and assetsFolder.Characters.StormforgeValen:FindFirstChild("Accessories")
 
+    -- Clean up any preexisting accessories to prevent armor stacking
+    for _, child in ipairs(character:GetChildren()) do
+        if child:IsA("Accessory") or child.Name == "HeroCape" then
+            child:Destroy()
+        end
+    end
+
     for _, accSpec in pairs(config.accessories) do
+        -- Prevent duplicate accessory loading if already exists
+        if character:FindFirstChild(accSpec.id) then
+            continue
+        end
+
         local prebuilt = accessoriesFolder and accessoriesFolder:FindFirstChild(accSpec.id) :: Accessory
         if prebuilt then
             local clone = prebuilt:Clone()
@@ -335,7 +352,7 @@ function CharacterLoader.EquipAccessories(character: Model, config: Types.Charac
     end
 end
 
--- Equips the Stormforge Warhammer tool
+-- Equips the Stormforge Warhammer tool with explicit naming and rigid welds
 function CharacterLoader.EquipWeapon(player: Player, config: Types.CharacterConfig)
     local assetsFolder = ReplicatedStorage:FindFirstChild("Assets")
     local weaponsFolder = assetsFolder and assetsFolder:FindFirstChild("Weapons")
@@ -344,13 +361,9 @@ function CharacterLoader.EquipWeapon(player: Player, config: Types.CharacterConf
     local tool: Tool
     if warhammerAsset then
         tool = warhammerAsset:Clone()
-        local handle = tool:FindFirstChild("Handle") :: BasePart?
-        if handle then
-            weldChildPartsToHandle(tool, handle)
-        end
     else
         tool = Instance.new("Tool")
-        tool.Name = config.weapon.name
+        tool.Name = "Stormforge Warhammer"
         tool.RequiresHandle = true
         tool.CanBeDropped = false
 
@@ -361,6 +374,13 @@ function CharacterLoader.EquipWeapon(player: Player, config: Types.CharacterConf
         handle.Material = Enum.Material.Metal
         handle.CanCollide = false
         handle.Parent = tool
+    end
+
+    tool.Name = "Stormforge Warhammer"
+
+    local handle = tool:FindFirstChild("Handle") :: BasePart?
+    if handle then
+        weldChildPartsToHandle(tool, handle)
     end
 
     tool:SetAttribute("Damage", config.weapon.damage)
@@ -384,7 +404,46 @@ function CharacterLoader.SpawnHero(player: Player, heroId: Types.CharacterId): M
         player.Character = character
     end
 
+    local hrp = character:WaitForChild("HumanoidRootPart") :: BasePart
     local humanoid = character:WaitForChild("Humanoid") :: Humanoid
+
+    -- Ensure Animator exists for custom rig animation playback
+    local animator = humanoid:FindFirstChildOfClass("Animator")
+    if not animator then
+        animator = Instance.new("Animator")
+        animator.Parent = humanoid
+    end
+
+    -- Server-side Network Ownership assignment
+    pcall(function()
+        if hrp:CanSetNetworkOwnership() then
+            hrp:SetNetworkOwner(player)
+        end
+    end)
+
+    -- Strip default avatar accessories to prevent clothing/armor stacking
+    for _, child in ipairs(character:GetChildren()) do
+        if child:IsA("Accessory") or child.Name == "HeroCape" then
+            child:Destroy()
+        end
+    end
+
+    -- Clear existing weapon tools from Backpack and Character
+    local backpack = player:FindFirstChild("Backpack")
+    if backpack then
+        for _, item in ipairs(backpack:GetChildren()) do
+            if item:IsA("Tool") and item:GetAttribute("WeaponId") then
+                item:Destroy()
+            end
+        end
+    end
+    for _, item in ipairs(character:GetChildren()) do
+        if item:IsA("Tool") and item:GetAttribute("WeaponId") then
+            item:Destroy()
+        end
+    end
+
+    -- Set stats
     humanoid.MaxHealth = config.stats.health
     humanoid.Health = config.stats.health
     humanoid.WalkSpeed = config.stats.walkSpeed
