@@ -39,7 +39,7 @@ local function applyRadiusDamage(centerPos: Vector3, radius: number, damage: num
             if not Players:GetPlayerFromCharacter(item) then
                 local root = item.PrimaryPart or item:FindFirstChild("HumanoidRootPart") or item:FindFirstChild("Torso") :: BasePart?
                 if root and (root.Position - centerPos).Magnitude <= radius then
-                    EnemyManager.TakeDamage(item, damage, attacker)
+                    EnemyManager.DamageEnemy(item, damage, attacker)
                 end
             end
         end
@@ -116,12 +116,12 @@ local AbilityExecutors: { [Types.AbilityId]: (player: Player, character: Model, 
             color = Color3.fromRGB(65, 225, 255),
         })
 
-        -- Server-authoritative radius damage at validated strike position
+        -- Server-authoritative radius damage at validated strike position (100 Damage)
         task.delay(0.1, function()
-            applyRadiusDamage(strikePos, 14, 90, player)
+            applyRadiusDamage(strikePos, 14, 100, player)
         end)
 
-        print(string.format("[AbilityService] %s cast %s at validated position %s", player.Name, spec.name, tostring(strikePos)))
+        print(string.format("[AbilityService] %s cast %s (100 DMG) at validated position %s", player.Name, spec.name, tostring(strikePos)))
     end,
 
     ThunderHammerSlam = function(player, character, spec)
@@ -131,30 +131,40 @@ local AbilityExecutors: { [Types.AbilityId]: (player: Player, character: Model, 
             caster = character,
             origin = hrp.Position,
             color = Color3.fromRGB(80, 240, 255),
-            radius = 16,
+            radius = 15,
         })
 
-        -- Server-authoritative shockwave damage around caster
+        -- Server-authoritative shockwave damage around caster (75 Damage, 15 studs radius)
         task.delay(0.2, function()
-            applyRadiusDamage(hrp.Position, 16, 125, player)
+            applyRadiusDamage(hrp.Position, 15, 75, player)
         end)
 
-        print(string.format("[AbilityService] %s cast %s", player.Name, spec.name))
+        print(string.format("[AbilityService] %s cast %s (75 DMG, 15-stud radius)", player.Name, spec.name))
     end,
 
     StormShield = function(player, character, spec)
+        -- Set StormShieldActive attribute: grants 20% incoming damage reduction for 8 seconds
+        character:SetAttribute("StormShieldActive", true)
+
+        task.delay(8.0, function()
+            if character and character.Parent then
+                character:SetAttribute("StormShieldActive", false)
+            end
+        end)
+
         abilityVFXEvent:FireAllClients("StormShield", {
             caster = character,
-            duration = 4.0,
+            duration = 8.0,
             color = Color3.fromRGB(65, 225, 255),
         })
 
-        print(string.format("[AbilityService] %s activated %s", player.Name, spec.name))
+        print(string.format("[AbilityService] %s activated %s (20%% damage reduction, 8s duration)", player.Name, spec.name))
     end,
 
     LightningDash = function(player, character, spec)
         local hrp = character:FindFirstChild("HumanoidRootPart") :: BasePart
         local forwardVector = hrp.CFrame.LookVector
+        local startPos = hrp.Position
 
         -- Raycast obstacle detection to prevent wall-clipping and out-of-bounds exploits
         local raycastParams = RaycastParams.new()
@@ -162,15 +172,15 @@ local AbilityExecutors: { [Types.AbilityId]: (player: Player, character: Model, 
         raycastParams.FilterType = Enum.RaycastFilterType.Exclude
         raycastParams.IgnoreWater = true
 
-        local forwardRay = Workspace:Raycast(hrp.Position, forwardVector * MAX_LIGHTNING_DASH_DISTANCE, raycastParams)
+        local forwardRay = Workspace:Raycast(startPos, forwardVector * MAX_LIGHTNING_DASH_DISTANCE, raycastParams)
         local destination: Vector3
 
         if forwardRay then
             -- Stop 2 studs before the detected wall/obstacle
             local safeDistance = math.max(0, forwardRay.Distance - 2.0)
-            destination = hrp.Position + (forwardVector * safeDistance)
+            destination = startPos + (forwardVector * safeDistance)
         else
-            destination = hrp.Position + (forwardVector * MAX_LIGHTNING_DASH_DISTANCE)
+            destination = startPos + (forwardVector * MAX_LIGHTNING_DASH_DISTANCE)
         end
 
         -- Downward raycast to snap destination cleanly to ground level
@@ -179,16 +189,42 @@ local AbilityExecutors: { [Types.AbilityId]: (player: Player, character: Model, 
             destination = groundRay.Position + Vector3.new(0, hrp.Size.Y / 2, 0)
         end
 
+        -- Apply 40 impact damage to enemies crossed along dash path
+        local dashDist = (destination - startPos).Magnitude
+        if dashDist > 1.0 then
+            local dashMid = startPos:Lerp(destination, 0.5)
+            local dashBox = Vector3.new(6, 6, dashDist)
+            local dashCFrame = CFrame.new(dashMid, destination)
+
+            local overlap = OverlapParams.new()
+            overlap.FilterDescendantsInstances = { character }
+            overlap.FilterType = Enum.RaycastFilterType.Exclude
+
+            local hitParts = Workspace:GetPartBoundsInBox(dashCFrame, dashBox, overlap)
+            local hitModels: { [Model]: boolean } = {}
+
+            for _, part in ipairs(hitParts) do
+                local model = part:FindFirstAncestorOfClass("Model")
+                if model and not hitModels[model] and model ~= character then
+                    local hum = model:FindFirstChildOfClass("Humanoid")
+                    if hum and hum.Health > 0 and not Players:GetPlayerFromCharacter(model) then
+                        hitModels[model] = true
+                        EnemyManager.DamageEnemy(model, 40, player)
+                    end
+                end
+            end
+        end
+
         abilityVFXEvent:FireAllClients("LightningDash", {
             caster = character,
-            startPos = hrp.Position,
+            startPos = startPos,
             endPos = destination,
             color = Color3.fromRGB(110, 240, 255),
         })
 
         -- Safely update CFrame to validated destination
         hrp.CFrame = CFrame.new(destination, destination + forwardVector)
-        print(string.format("[AbilityService] %s safely dashed to %s", player.Name, tostring(destination)))
+        print(string.format("[AbilityService] %s safely dashed to %s (40 impact damage check)", player.Name, tostring(destination)))
     end,
 }
 

@@ -46,6 +46,9 @@
         "WeaponAttack": {
           "$className": "RemoteEvent"
         },
+        "AttackRequest": {
+          "$className": "RemoteEvent"
+        },
         "ShowDialogue": {
           "$className": "RemoteEvent"
         },

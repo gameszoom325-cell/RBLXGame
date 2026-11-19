@@ -20,6 +20,7 @@ local AtmosphereController = require(World:WaitForChild("Environment"):WaitForCh
 local NPCConfig = require(World:WaitForChild("NPCs"):WaitForChild("NPCConfig"))
 local ZoneManager = require(Systems:WaitForChild("ZoneManager"))
 local EnemyManager = require(Systems:WaitForChild("EnemyManager"))
+local EnemyAI = require(Systems:WaitForChild("EnemyAI"))
 local QuestManager = require(Systems:WaitForChild("QuestManager"))
 
 local networkFolder = ReplicatedStorage:WaitForChild("Network")
@@ -66,6 +67,7 @@ local function initWorld()
     -- 5. Spawn Ambient Enemies in the Wilds
     task.delay(1.0, function()
         EnemyManager.InitNodes()
+        EnemyAI.Init()
     end)
 
     -- 6. Hook NPC and Quest Board ProximityPrompt interactions

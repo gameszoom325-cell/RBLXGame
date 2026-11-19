@@ -92,11 +92,23 @@ function EnemyManager.SpawnEnemy(enemyType: string, position: Vector3): Model
     coreWeld.Part1 = core
     coreWeld.Parent = core
 
+    local isDrone = (enemyType == "TempestDrone")
+    local level = if isDrone then 3 else 6
+    local maxHp = if isDrone then 120 else 300
+    local xpReward = if isDrone then 50 else 150
+    local goldReward = if isDrone then 25 else 100
+
+    enemy:SetAttribute("EnemyType", enemyType)
+    enemy:SetAttribute("Level", level)
+    enemy:SetAttribute("MaxHealth", maxHp)
+    enemy:SetAttribute("CurrentHealth", maxHp)
+    enemy:SetAttribute("XPReward", xpReward)
+    enemy:SetAttribute("GoldReward", goldReward)
+
     local humanoid = Instance.new("Humanoid")
-    local maxHp = if enemyType == "TempestDrone" then 120 else 300
     humanoid.MaxHealth = maxHp
     humanoid.Health = maxHp
-    humanoid.DisplayName = string.format("%s [Lv. %d]", enemyType, if enemyType == "TempestDrone" then 3 else 6)
+    humanoid.DisplayName = string.format("%s [Lv. %d]", enemyType, level)
     humanoid.DisplayDistanceType = Enum.HumanoidDisplayDistanceType.AlwaysOn
     humanoid.Parent = enemy
 
@@ -126,13 +138,14 @@ function EnemyManager.SpawnEnemy(enemyType: string, position: Vector3): Model
     return enemy
 end
 
-function EnemyManager.TakeDamage(enemy: Model, damage: number, attacker: Player?)
+function EnemyManager.DamageEnemy(enemy: Model, damage: number, player: Player?)
     local humanoid = enemy:FindFirstChildOfClass("Humanoid")
     if not humanoid or humanoid.Health <= 0 then return end
 
     local data = activeEnemies[enemy]
 
     humanoid:TakeDamage(damage)
+    enemy:SetAttribute("CurrentHealth", humanoid.Health)
 
     if data then
         data.currentHp = humanoid.Health
@@ -147,12 +160,20 @@ function EnemyManager.TakeDamage(enemy: Model, damage: number, attacker: Player?
             end
         end
 
-        -- Ensure kill objective progress and defeat sequence fire exactly once
+        -- Ensure kill objective progress, rewards, and defeat sequence fire exactly once
         if humanoid.Health <= 0 and not enemy:GetAttribute("IsDead") then
             enemy:SetAttribute("IsDead", true)
-            if attacker then
-                QuestManager.ProgressObjective(attacker, "KillEnemy", 1)
-                print(string.format("[EnemyManager] %s defeated %s!", attacker.Name, data.enemyType))
+            if player then
+                -- Award XP and Gold to player attributes
+                local currentXp = player:GetAttribute("XP") or 0
+                local currentGold = player:GetAttribute("Gold") or 0
+                local xpGain = enemy:GetAttribute("XPReward") or 0
+                local goldGain = enemy:GetAttribute("GoldReward") or 0
+                player:SetAttribute("XP", currentXp + xpGain)
+                player:SetAttribute("Gold", currentGold + goldGain)
+
+                QuestManager.ProgressObjective(player, "KillEnemy", 1)
+                print(string.format("[EnemyManager] %s defeated %s! (+%d XP, +%d Gold)", player.Name, data.enemyType, xpGain, goldGain))
             end
             EnemyManager.OnEnemyDefeated(enemy)
         end
@@ -162,10 +183,18 @@ function EnemyManager.TakeDamage(enemy: Model, damage: number, attacker: Player?
             task.delay(1.5, function()
                 if humanoid and humanoid.Parent then
                     humanoid.Health = humanoid.MaxHealth
+                    enemy:SetAttribute("CurrentHealth", humanoid.MaxHealth)
                 end
             end)
         end
     end
+end
+
+-- Backward compatibility alias
+EnemyManager.TakeDamage = EnemyManager.DamageEnemy
+
+function EnemyManager.GetActiveEnemies(): { [Model]: { enemyType: string, maxHp: number, currentHp: number, respawnNode: Vector3 } }
+    return activeEnemies
 end
 
 function EnemyManager.OnEnemyDefeated(enemy: Model)
