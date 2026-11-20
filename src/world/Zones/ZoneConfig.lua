@@ -44,6 +44,26 @@ local ZoneConfig: { [string]: ZoneData } = {
         isSafeZone = true,
         ambientColor = Color3.fromRGB(30, 40, 60),
     },
+
+    FrozenPeaks = {
+        id = "FrozenPeaks",
+        name = "FrozenPeaks",
+        displayName = "The Frozen Peaks",
+        description = "Permafrost mountains swept by blinding blizzards and glacial behemoths.",
+        spawnCFrame = CFrame.new(-300, 24, -250),
+        isSafeZone = false,
+        ambientColor = Color3.fromRGB(180, 215, 255),
+    },
+
+    VolcanicWastes = {
+        id = "VolcanicWastes",
+        name = "VolcanicWastes",
+        displayName = "The Volcanic Wastes",
+        description = "A scorched volcanic crater brimming with molten fury and subterranean predators.",
+        spawnCFrame = CFrame.new(300, 19, -250),
+        isSafeZone = false,
+        ambientColor = Color3.fromRGB(220, 80, 40),
+    },
 }
 
 return ZoneConfig

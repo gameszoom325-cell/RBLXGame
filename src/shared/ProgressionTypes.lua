@@ -9,7 +9,7 @@
 ]]
 
 export type ItemCategory = "Weapon" | "Armor" | "Artifact" | "Consumable" | "QuestItem" | "Material"
-export type EquipSlot = "Weapon" | "Chest" | "Head" | "Shoulders" | "Boots" | "Artifact"
+export type EquipSlot = "Weapon" | "Offhand" | "Chest" | "Head" | "Legs" | "Shoulders" | "Gloves" | "Boots" | "Necklace" | "Ring" | "Artifact" | "Cape" | "Relic"
 export type ItemRarity = "Common" | "Uncommon" | "Rare" | "Epic" | "Legendary"
 
 export type EquipmentStats = {
@@ -36,6 +36,7 @@ export type ItemDefinition = {
     stats: EquipmentStats?,
     usableEffect: string?,
     iconColor: Color3?,
+    setName: string?,
 }
 
 export type InventoryItem = {
@@ -48,11 +49,18 @@ export type InventoryItem = {
 
 export type EquippedGear = {
     Weapon: string?,
+    Offhand: string?,
     Chest: string?,
     Head: string?,
+    Legs: string?,
     Shoulders: string?,
+    Gloves: string?,
     Boots: string?,
+    Necklace: string?,
+    Ring: string?,
     Artifact: string?,
+    Cape: string?,
+    Relic: string?,
 }
 
 export type PlayerStatistics = {

@@ -42,6 +42,28 @@ local LOOT_TABLES: { [string]: EnemyLootTable } = {
             { itemId = "LegendaryHammerPart", minCount = 1, maxCount = 1, chance = 0.05 }, -- 5% Legendary Hammer Part
         },
     },
+
+    FrostGolem = {
+        goldMin = 90,
+        goldMax = 180,
+        goldChance = 1.00,
+        drops = {
+            { itemId = "IronOre", minCount = 2, maxCount = 4, chance = 0.55 },
+            { itemId = "FrostShard", minCount = 1, maxCount = 2, chance = 0.40 },
+            { itemId = "GlacialPlate", minCount = 1, maxCount = 1, chance = 0.10 },
+        },
+    },
+
+    MagmaStalker = {
+        goldMin = 110,
+        goldMax = 220,
+        goldChance = 1.00,
+        drops = {
+            { itemId = "BeastHide", minCount = 2, maxCount = 4, chance = 0.50 },
+            { itemId = "VolcanicCore", minCount = 1, maxCount = 2, chance = 0.35 },
+            { itemId = "MoltenSaber", minCount = 1, maxCount = 1, chance = 0.08 },
+        },
+    },
 }
 
 export type RolledLoot = {

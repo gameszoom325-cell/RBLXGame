@@ -168,6 +168,13 @@ function DungeonManager.StartDungeon(partyMembers: { Player }, difficulty: strin
                         prompt.Enabled = false
                         conduit.Color = Color3.fromRGB(255, 120, 50)
                         DungeonManager.ProgressObjective("Conduits", 1)
+                        local questModule = Systems:FindFirstChild("QuestManager")
+                        if questModule then
+                            local QuestManager = require(questModule) :: any
+                            if QuestManager.ProgressObjective then
+                                QuestManager.ProgressObjective(player, "OverloadConduit", 1)
+                            end
+                        end
                         if conn then conn:Disconnect() end
                     end
                 end)

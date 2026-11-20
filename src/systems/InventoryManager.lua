@@ -347,6 +347,39 @@ function InventoryManager.GetComputedStats(player: Player)
         end
     end
 
+    -- Dynamic Set Bonuses Calculation
+    local setCounts: { [string]: number } = {}
+    if data and data.Equipped then
+        for _, itemId in pairs(data.Equipped) do
+            if itemId then
+                local def = ItemDatabase.GetItem(itemId)
+                if def and def.setName then
+                    setCounts[def.setName] = (setCounts[def.setName] or 0) + 1
+                end
+            end
+        end
+    end
+
+    -- Stormforged Set: 2-Piece (+20 Shock), 4-Piece (+10% Crit, +10% CDR)
+    local stormforgedCount = setCounts["Stormforged"] or 0
+    if stormforgedCount >= 2 then
+        computed.LightningDamage += 20
+    end
+    if stormforgedCount >= 4 then
+        computed.CritChance += 0.10
+        computed.CooldownReduction += 0.10
+    end
+
+    -- Vanguard Set: 2-Piece (+150 HP), 4-Piece (+35 DEF, +4 Speed)
+    local vanguardCount = setCounts["Vanguard"] or 0
+    if vanguardCount >= 2 then
+        computed.MaxHealth += 150
+    end
+    if vanguardCount >= 4 then
+        computed.Defense += 35
+        computed.WalkSpeed += 4
+    end
+
     computed.CooldownReduction = math.clamp(computed.CooldownReduction, 0, 0.40) -- Cap at 40% CDR
     return computed
 end

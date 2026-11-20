@@ -27,6 +27,7 @@ local ProgressionManager = require(Systems:WaitForChild("ProgressionManager"))
 local EconomyManager = require(Systems:WaitForChild("EconomyManager"))
 local InventoryManager = require(Systems:WaitForChild("InventoryManager"))
 local PlayerDataService = require(Systems:WaitForChild("PlayerDataService"))
+local QuestManager = require(Systems:WaitForChild("QuestManager"))
 
 type BossPhase = ProgressionTypes.BossPhase
 
@@ -400,6 +401,9 @@ function BossManager.OnBossDefeated(bossModel: Model)
             PlayerDataService.UpdatePlayerData(p, function(pData)
                 pData.Stats.BossKills += 1
             end)
+
+            -- Progress Boss Quests
+            QuestManager.ProgressObjective(p, "KillBoss", 1)
 
             -- Trigger Achievement
             local achModule = Systems:FindFirstChild("AchievementManager")

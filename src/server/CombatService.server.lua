@@ -20,6 +20,13 @@ local EnemyManager = require(Systems:WaitForChild("EnemyManager"))
 local networkFolder = ReplicatedStorage:WaitForChild("Network")
 local attackRequestEvent = networkFolder:WaitForChild("AttackRequest") :: RemoteEvent
 local abilityVFXEvent = networkFolder:WaitForChild("ReplicateAbilityVFX") :: RemoteEvent
+local combatFeedbackEvent = networkFolder:WaitForChild("CombatFeedback") :: RemoteEvent
+
+-- Cached zero-allocation OverlapParams
+local cachedOverlapParams = OverlapParams.new()
+cachedOverlapParams.FilterType = Enum.RaycastFilterType.Exclude
+cachedOverlapParams.CollisionGroup = "Default"
+cachedOverlapParams.MaxParts = 50
 
 -- Optional backward compatibility remote
 local legacyWeaponAttack = networkFolder:FindFirstChild("WeaponAttack") :: RemoteEvent?
@@ -101,17 +108,11 @@ local function processAttack(player: Player)
     character:SetAttribute("CurrentComboStep", state.currentStep)
     character:SetAttribute("CurrentAttackName", attackData.name)
 
-    -- Step 4: Server-Authoritative Hitbox via GetPartBoundsInBox
-    -- Hitbox CFrame: 5 studs directly in front of HumanoidRootPart (-Z is forward in Roblox)
+    -- Step 4: Server-Authoritative Hitbox via GetPartBoundsInBox (Zero-allocation cached query)
     local hitboxCFrame = hrp.CFrame * CFrame.new(0, 0, -HITBOX_FORWARD_OFFSET)
+    cachedOverlapParams.FilterDescendantsInstances = { character }
 
-    local overlapParams = OverlapParams.new()
-    overlapParams.FilterDescendantsInstances = { character }
-    overlapParams.FilterType = Enum.RaycastFilterType.Exclude
-    overlapParams.CollisionGroup = "Default"
-    overlapParams.MaxParts = 50
-
-    local partsInHitbox = Workspace:GetPartBoundsInBox(hitboxCFrame, HITBOX_SIZE, overlapParams)
+    local partsInHitbox = Workspace:GetPartBoundsInBox(hitboxCFrame, HITBOX_SIZE, cachedOverlapParams)
     local hitModels: { [Model]: boolean } = {}
     local totalHits = 0
 
@@ -140,6 +141,18 @@ local function processAttack(player: Player)
                 EnemyManager.DamageEnemy(targetModel, finalDamage, player, damageType)
             end
         end
+    end
+
+    -- Trigger Client Combat Feedback (Screen Shake, Hit Stop, Finisher Blast)
+    if totalHits > 0 then
+        combatFeedbackEvent:FireClient(player, {
+            hitCount = totalHits,
+            isCrit = isCrit,
+            comboStep = state.currentStep,
+            shakeIntensity = if state.currentStep == 3 then 1.6 else (if isCrit then 1.2 else 0.6),
+            hitStopDuration = if state.currentStep == 3 then 0.08 else 0.04,
+            origin = hitboxCFrame.Position,
+        })
     end
 
     -- Replicate swing impact and weapon VFX to clients

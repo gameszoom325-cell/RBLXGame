@@ -16,6 +16,8 @@ local Systems = ReplicatedStorage:WaitForChild("Systems")
 
 local LobbyBuilder = require(World:WaitForChild("Lobby"):WaitForChild("LobbyBuilder"))
 local TempestWildsBuilder = require(World:WaitForChild("Zones"):WaitForChild("TempestWildsBuilder"))
+local FrozenPeaksBuilder = require(World:WaitForChild("Zones"):WaitForChild("FrozenPeaksBuilder"))
+local VolcanicWastesBuilder = require(World:WaitForChild("Zones"):WaitForChild("VolcanicWastesBuilder"))
 local AtmosphereController = require(World:WaitForChild("Environment"):WaitForChild("AtmosphereController"))
 local NPCConfig = require(World:WaitForChild("NPCs"):WaitForChild("NPCConfig"))
 local ZoneManager = require(Systems:WaitForChild("ZoneManager"))
@@ -76,10 +78,12 @@ local function initWorld()
     -- 2. Build Main Lobby (Grand Storm Sanctuary)
     LobbyBuilder.BuildLobby()
 
-    -- 3. Build Zone 1: The Tempest Wilds
+    -- 3. Build World Zones
     TempestWildsBuilder.BuildZone()
+    FrozenPeaksBuilder.BuildZone()
+    VolcanicWastesBuilder.BuildZone()
 
-    -- 4. Hook Teleport Portals between Sanctuary and Wilds
+    -- 4. Hook Teleport Portals across all zones
     ZoneManager.HookPortals()
 
     -- 5. Spawn Ambient Enemies in the Wilds

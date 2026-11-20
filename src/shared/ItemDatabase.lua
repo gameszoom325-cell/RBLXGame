@@ -312,6 +312,178 @@ local ItemDatabase: { [string]: ItemDefinition } = {
         stats = nil,
         iconColor = Color3.fromRGB(255, 175, 35),
     },
+
+    -- =========================================================================
+    -- EXPANDED EQUIPMENT (OFFHAND, LEGS, GLOVES, NECKLACE, CAPE, RELIC)
+    -- =========================================================================
+    ThunderShield = {
+        id = "ThunderShield",
+        name = "Aegis of the Storm Cloud",
+        category = "Armor",
+        slot = "Offhand",
+        rarity = "Rare",
+        description = "An electrified buckler that absorbs blunt impacts and grounds static charges.",
+        maxStack = 1,
+        buyPrice = 450,
+        sellPrice = 190,
+        stats = {
+            health = 100,
+            defense = 30,
+        },
+        iconColor = Color3.fromRGB(90, 160, 240),
+        setName = "Stormforged",
+    },
+
+    StormGreaves = {
+        id = "StormGreaves",
+        name = "Stormforged Legplates",
+        category = "Armor",
+        slot = "Legs",
+        rarity = "Rare",
+        description = "Heavy greaves forged with shock-absorbing hydraulic conduits.",
+        maxStack = 1,
+        buyPrice = 380,
+        sellPrice = 160,
+        stats = {
+            health = 70,
+            defense = 16,
+        },
+        iconColor = Color3.fromRGB(75, 130, 225),
+        setName = "Stormforged",
+    },
+
+    ConductorGauntlets = {
+        id = "ConductorGauntlets",
+        name = "Conductor Power Gauntlets",
+        category = "Armor",
+        slot = "Gloves",
+        rarity = "Rare",
+        description = "Electrified gauntlets focusing kinetic punches and hammer grips.",
+        maxStack = 1,
+        buyPrice = 360,
+        sellPrice = 150,
+        stats = {
+            attack = 18,
+            critDamage = 0.12,
+        },
+        iconColor = Color3.fromRGB(65, 215, 255),
+        setName = "Stormforged",
+    },
+
+    AmuletOfLightning = {
+        id = "AmuletOfLightning",
+        name = "Pendant of the Tempest Heart",
+        category = "Artifact",
+        slot = "Necklace",
+        rarity = "Epic",
+        description = "A glowing sapphire pendant vibrating in harmony with atmospheric electrical currents.",
+        maxStack = 1,
+        buyPrice = 850,
+        sellPrice = 360,
+        stats = {
+            lightningDamage = 25,
+            abilityCooldown = 0.05,
+        },
+        iconColor = Color3.fromRGB(80, 230, 255),
+    },
+
+    TempestCape = {
+        id = "TempestCape",
+        name = "Shroud of the Squall",
+        category = "Armor",
+        slot = "Cape",
+        rarity = "Rare",
+        description = "A billowing cape of enchanted fabric that catches tailwinds during combat sprints.",
+        maxStack = 1,
+        buyPrice = 400,
+        sellPrice = 175,
+        stats = {
+            health = 50,
+            speed = 4,
+        },
+        iconColor = Color3.fromRGB(200, 60, 75),
+    },
+
+    SovereignRelic = {
+        id = "SovereignRelic",
+        name = "Heart of the Storm Titan",
+        category = "Artifact",
+        slot = "Relic",
+        rarity = "Legendary",
+        description = "The immortal pulsing nucleus harvested from the Storm Titan. Emanates limitless thunder.",
+        maxStack = 1,
+        buyPrice = 2500,
+        sellPrice = 1000,
+        stats = {
+            attack = 45,
+            critChance = 0.12,
+            lightningDamage = 30,
+            abilityCooldown = 0.08,
+        },
+        iconColor = Color3.fromRGB(255, 185, 45),
+        setName = "Stormforged",
+    },
+
+    FrostShard = {
+        id = "FrostShard",
+        name = "Glacial Frost Shard",
+        category = "Material",
+        slot = nil,
+        rarity = "Rare",
+        description = "A sliver of pure glacial permafrost retrieved from the Frozen Peaks. Frigid to the touch.",
+        maxStack = 99,
+        buyPrice = 120,
+        sellPrice = 50,
+        iconColor = Color3.fromRGB(150, 220, 255),
+    },
+
+    VolcanicCore = {
+        id = "VolcanicCore",
+        name = "Molten Volcanic Core",
+        category = "Material",
+        slot = nil,
+        rarity = "Rare",
+        description = "A dense core harvested from deep magma chambers in the Volcanic Wastes.",
+        maxStack = 99,
+        buyPrice = 140,
+        sellPrice = 60,
+        iconColor = Color3.fromRGB(255, 95, 30),
+    },
+
+    GlacialPlate = {
+        id = "GlacialPlate",
+        name = "Glacial Ice Cuirass",
+        category = "Armor",
+        slot = "Chest",
+        rarity = "Epic",
+        description = "Armor crafted from unmelting permafrost. Grants high resistance to environmental shock.",
+        maxStack = 1,
+        buyPrice = 1100,
+        sellPrice = 450,
+        stats = {
+            health = 160,
+            defense = 35,
+        },
+        iconColor = Color3.fromRGB(130, 205, 255),
+    },
+
+    MoltenSaber = {
+        id = "MoltenSaber",
+        name = "Magma Edge Saber",
+        category = "Weapon",
+        slot = "Weapon",
+        rarity = "Epic",
+        description = "A glowing scimitar forged with obsidian and liquid magma. Ignites foes on contact.",
+        maxStack = 1,
+        buyPrice = 1350,
+        sellPrice = 550,
+        stats = {
+            attack = 42,
+            critChance = 0.10,
+            critDamage = 0.20,
+        },
+        iconColor = Color3.fromRGB(255, 100, 30),
+    },
 }
 
 -- Helper methods

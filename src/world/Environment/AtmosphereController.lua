@@ -41,7 +41,26 @@ function AtmosphereController.ApplyFantasyPreset()
     bloom.Size = 24
     bloom.Threshold = 0.95
 
-    print("[AtmosphereController] Fantasy lighting and atmospheric presets applied.")
+    -- God Rays (SunRaysEffect)
+    local sunRays = Lighting:FindFirstChildOfClass("SunRaysEffect")
+    if not sunRays then
+        sunRays = Instance.new("SunRaysEffect")
+        sunRays.Parent = Lighting
+    end
+    sunRays.Intensity = 0.25
+    sunRays.Spread = 0.85
+
+    -- Rich Fantasy Color Correction
+    local colorCorr = Lighting:FindFirstChildOfClass("ColorCorrectionEffect")
+    if not colorCorr then
+        colorCorr = Instance.new("ColorCorrectionEffect")
+        colorCorr.Parent = Lighting
+    end
+    colorCorr.Brightness = 0.03
+    colorCorr.Contrast = 0.12
+    colorCorr.Saturation = 0.18
+
+    print("[AtmosphereController] Fantasy lighting, volumetric god rays, and atmospheric presets applied.")
 end
 
 return AtmosphereController

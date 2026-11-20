@@ -13,6 +13,7 @@
 local Players = game:GetService("Players")
 local TweenService = game:GetService("TweenService")
 local UserInputService = game:GetService("UserInputService")
+local GuiService = game:GetService("GuiService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local player = Players.LocalPlayer
@@ -607,6 +608,20 @@ local function renderInventory()
                 lockIcon.Parent = slot
             end
 
+            -- Hover effect
+            slot.MouseEnter:Connect(function()
+                if item.uuid ~= selectedInventoryItemUUID then
+                    slot.BackgroundColor3 = Color3.fromRGB(36, 48, 72)
+                    sStroke.Thickness = 1.8
+                end
+            end)
+            slot.MouseLeave:Connect(function()
+                if item.uuid ~= selectedInventoryItemUUID then
+                    slot.BackgroundColor3 = Color3.fromRGB(24, 32, 50)
+                    sStroke.Thickness = 1.2
+                end
+            end)
+
             slot.MouseButton1Click:Connect(function()
                 selectedInventoryItemUUID = item.uuid
                 renderInventory()
@@ -628,6 +643,47 @@ local function renderInventory()
                         statsDesc = table.concat(bonusList, " | ") .. "\n" .. def.description
                     end
                 end
+
+                -- Equipment Comparison Tooltip
+                if def.slot then
+                    local equippedId = (clientEquipped :: any)[def.slot]
+                    if equippedId then
+                        local curDef = ItemDatabase.GetItem(equippedId)
+                        if curDef then
+                            local diffs = {}
+                            local statKeys = { "attack", "health", "defense", "speed", "lightningDamage", "critChance" }
+                            local statNames = {
+                                attack = "ATK",
+                                health = "HP",
+                                defense = "DEF",
+                                speed = "Speed",
+                                lightningDamage = "Shock",
+                                critChance = "Crit %",
+                            }
+
+                            for _, k in ipairs(statKeys) do
+                                local oldVal = (curDef.stats and (curDef.stats :: any)[k]) or 0
+                                local newVal = (def.stats and (def.stats :: any)[k]) or 0
+                                local diff = newVal - oldVal
+                                if diff ~= 0 then
+                                    local sign = if diff > 0 then "+" else ""
+                                    local formattedDiff = if k == "critChance" then string.format("%s%d%%", sign, diff * 100) else string.format("%s%d", sign, diff)
+                                    local tag = if diff > 0 then "▲" else "▼"
+                                    table.insert(diffs, string.format("%s %s (%s vs Equipped)", tag, statNames[k] or k, formattedDiff))
+                                end
+                            end
+
+                            if #diffs > 0 then
+                                statsDesc = statsDesc .. "\n\n--- COMPARE vs " .. curDef.name .. " ---\n" .. table.concat(diffs, "\n")
+                            else
+                                statsDesc = statsDesc .. "\n\n--- COMPARE vs " .. curDef.name .. " ---\n= Identical Baseline Stats"
+                            end
+                        end
+                    else
+                        statsDesc = statsDesc .. "\n\n--- [Slot Empty: Full Stat Gain] ---"
+                    end
+                end
+
                 detailStats.Text = statsDesc
 
                 lockBtn.Visible = true
@@ -1065,12 +1121,20 @@ end)
 UserInputService.InputBegan:Connect(function(input: InputObject, gameProcessed: boolean)
     if gameProcessed then return end
 
-    if input.KeyCode == Enum.KeyCode.I or input.KeyCode == Enum.KeyCode.Tab then
+    if input.KeyCode == Enum.KeyCode.I or input.KeyCode == Enum.KeyCode.Tab or input.KeyCode == Enum.KeyCode.ButtonY or input.KeyCode == Enum.KeyCode.ButtonSelect then
         inventoryWindow.Visible = not inventoryWindow.Visible
         if inventoryWindow.Visible then
             inventoryActionEvent:FireServer("RequestSync")
+            task.delay(0.1, function()
+                local firstSlot = itemScroll:FindFirstChildWhichIsA("TextButton")
+                if firstSlot then
+                    GuiService.SelectedObject = firstSlot
+                end
+            end)
+        else
+            GuiService.SelectedObject = nil
         end
-    elseif input.KeyCode == Enum.KeyCode.P then
+    elseif input.KeyCode == Enum.KeyCode.P or input.KeyCode == Enum.KeyCode.ButtonL3 then
         profileWindow.Visible = not profileWindow.Visible
         if profileWindow.Visible then
             refreshProfileStats()

@@ -55,6 +55,46 @@ local Quests: { [string]: QuestDefinition } = {
         targetCount = 3,
         rewards = { xp = 300, gold = 150 },
     },
+
+    Q_DAILY_HUNT = {
+        id = "Q_DAILY_HUNT",
+        title = "Daily Bounty: Tempest Extermination",
+        description = "Destroy 5 hostile automatons or beasts in the wild zones.",
+        giver = "Archivist Orin",
+        objectiveType = "KillEnemy",
+        targetCount = 5,
+        rewards = { xp = 450, gold = 200 },
+    },
+
+    Q_TITAN_SLAYER = {
+        id = "Q_TITAN_SLAYER",
+        title = "Colossus Vanquisher",
+        description = "Assemble a brave party and slay the Storm Titan in the Temple of Storms.",
+        giver = "Instructor Kael",
+        objectiveType = "KillBoss",
+        targetCount = 1,
+        rewards = { xp = 2000, gold = 1000 },
+    },
+
+    Q_TEMPLE_CONDUITS = {
+        id = "Q_TEMPLE_CONDUITS",
+        title = "Sever the Power Flow",
+        description = "Overload both Lightning Conduits inside Chamber 2 of the Temple of Storms.",
+        giver = "Weaponsmith Garrick",
+        objectiveType = "OverloadConduit",
+        targetCount = 2,
+        rewards = { xp = 800, gold = 400 },
+    },
+
+    Q_MASTER_SMITH = {
+        id = "Q_MASTER_SMITH",
+        title = "Apprentice of the Forge",
+        description = "Craft a weapon or piece of armor using materials gathered from the wilds.",
+        giver = "Forge Master Keith",
+        objectiveType = "CraftItem",
+        targetCount = 1,
+        rewards = { xp = 500, gold = 250 },
+    },
 }
 
 -- Player states: [UserId][QuestId] = PlayerQuestProgress
@@ -71,9 +111,13 @@ local function initPlayer(player: Player)
     playerQuests[userId] = playerQuests[userId] or {}
     playerStats[userId] = playerStats[userId] or { gold = 0, xp = 0, level = 1 }
 
-    -- Auto-assign introductory quest
+    -- Auto-assign introductory & bounty quests
     QuestManager.AcceptQuest(player, "Q_TRIAL_LIGHTNING")
     QuestManager.AcceptQuest(player, "Q_TEMPEST_DRONES")
+    QuestManager.AcceptQuest(player, "Q_DAILY_HUNT")
+    QuestManager.AcceptQuest(player, "Q_TITAN_SLAYER")
+    QuestManager.AcceptQuest(player, "Q_TEMPLE_CONDUITS")
+    QuestManager.AcceptQuest(player, "Q_MASTER_SMITH")
 end
 
 function QuestManager.AcceptQuest(player: Player, questId: string): boolean

@@ -34,7 +34,18 @@ local MAX_LIGHTNING_DASH_DISTANCE = 30.0
 -- Radius damage utility for abilities against enemies in Workspace
 local function applyRadiusDamage(centerPos: Vector3, radius: number, damage: number, attacker: Player, damageType: string?)
     local bonusLightning = (attacker.Character and attacker.Character:GetAttribute("BonusLightningDamage")) or 0
-    local totalDamage = damage + bonusLightning
+
+    -- Dynamic Weather Bonus Multiplier (Empowers lightning in storms)
+    local weatherModule = Systems:FindFirstChild("WeatherService")
+    local weatherMult = 1.0
+    if weatherModule then
+        local WeatherService = require(weatherModule) :: any
+        if WeatherService.GetLightningMultiplier then
+            weatherMult = WeatherService.GetLightningMultiplier()
+        end
+    end
+
+    local totalDamage = math.floor((damage + bonusLightning) * weatherMult)
 
     for _, item in ipairs(Workspace:GetDescendants()) do
         if item:IsA("Model") and item:FindFirstChildOfClass("Humanoid") then

@@ -7,6 +7,7 @@
 ]]
 
 local Players = game:GetService("Players")
+local Workspace = game:GetService("Workspace")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Shared = ReplicatedStorage:WaitForChild("Shared")
@@ -87,20 +88,53 @@ local function bindCharacterAnimationEvents(character: Model)
     end)
     table.insert(movementConnections, runConn)
 
-    -- Jump / Freefall state listener
+    -- Jump / Freefall state listener with Landing camera dip
     local stateConn = humanoid.StateChanged:Connect(function(_, newState)
         if newState == Enum.HumanoidStateType.Jumping or newState == Enum.HumanoidStateType.Freefall then
             AnimationController.PlayTrack("Jump", 0.1)
         elseif newState == Enum.HumanoidStateType.Landed then
             AnimationController.StopTrack("Jump", 0.15)
+            -- Subtle tactile landing camera dip
+            local origOffset = humanoid.CameraOffset
+            humanoid.CameraOffset = origOffset - Vector3.new(0, 0.4, 0)
+            task.delay(0.08, function()
+                if humanoid and humanoid.Parent then
+                    humanoid.CameraOffset = origOffset
+                end
+            end)
         end
     end)
     table.insert(movementConnections, stateConn)
 
-    -- Tool Attack listener (Hammer swings)
+    -- Tool Attack listener with combo cancel windows
+    local lastAttackTrigger = 0
+    local comboIndex = 1
     local function hookTool(tool: Tool)
         local actConn = tool.Activated:Connect(function()
-            AnimationController.PlayTrack("Attack", 0.05)
+            local now = os.clock()
+            local activeAttack = loadedTracks["Attack"]
+            local canCancel = false
+
+            if activeAttack and activeAttack.IsPlaying then
+                local length = if activeAttack.Length > 0 then activeAttack.Length else 0.8
+                local progress = activeAttack.TimePosition / length
+                if progress >= 0.55 or (now - lastAttackTrigger >= 0.45) then
+                    canCancel = true
+                else
+                    return
+                end
+            end
+
+            lastAttackTrigger = now
+            if canCancel and loadedTracks["HeavyAttack"] and comboIndex == 2 then
+                AnimationController.StopTrack("Attack", 0.05)
+                AnimationController.PlayTrack("HeavyAttack", 0.05)
+                comboIndex = 1
+            else
+                AnimationController.PlayTrack("Attack", 0.05)
+                comboIndex = 2
+            end
+
             attackRequestEvent:FireServer()
         end)
         table.insert(movementConnections, actConn)
@@ -180,5 +214,16 @@ heroLoadedEvent.OnClientEvent:Connect(function(heroId: string)
         AnimationController.PlayTrack("Idle", 0.2)
     end)
 end)
+
+function AnimationController.GetActiveTrack(slotName: string): AnimationTrack?
+    return loadedTracks[slotName]
+end
+
+function AnimationController.CanCancelCurrentAttack(): boolean
+    local track = loadedTracks["Attack"]
+    if not track or not track.IsPlaying then return true end
+    local length = if track.Length > 0 then track.Length else 0.8
+    return (track.TimePosition / length) >= 0.55
+end
 
 return AnimationController

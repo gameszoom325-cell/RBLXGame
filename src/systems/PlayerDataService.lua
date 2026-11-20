@@ -23,8 +23,8 @@ type InventoryItem = ProgressionTypes.InventoryItem
 
 local PlayerDataService = {}
 
-local DATA_VERSION = 1
-local DATA_STORE_NAME = "RPG_PlayerData_v1"
+local DATA_VERSION = 2
+local DATA_STORE_NAME = "RPG_PlayerData_v2"
 local AUTOSAVE_INTERVAL = 180
 local MAX_RETRY_ATTEMPTS = 3
 
@@ -46,8 +46,34 @@ end
 
 -- Active in-memory session cache: [UserId] = PlayerData
 local sessionData: { [number]: PlayerData } = {}
+local backupData: { [number]: PlayerData } = {}
 local isLoaded: { [number]: boolean } = {}
 local isDirty: { [number]: boolean } = {}
+
+-- Deep clone helper for atomic backups and rollbacks
+local function deepCopy(orig: any): any
+    local copy
+    if type(orig) == "table" then
+        copy = {}
+        for origKey, origValue in pairs(orig) do
+            copy[deepCopy(origKey)] = deepCopy(origValue)
+        end
+    else
+        copy = orig
+    end
+    return copy
+end
+
+-- Strict Schema Validator to prevent corrupted saves
+local function validateSchema(data: any): boolean
+    if typeof(data) ~= "table" then return false end
+    if typeof(data.Level) ~= "number" or data.Level < 1 then return false end
+    if typeof(data.Gold) ~= "number" or data.Gold < 0 then return false end
+    if typeof(data.Equipped) ~= "table" then return false end
+    if typeof(data.Inventory) ~= "table" then return false end
+    if typeof(data.Stats) ~= "table" then return false end
+    return true
+end
 
 -- Factory for new player progression profile
 local function createDefaultProfile(): PlayerData
@@ -84,11 +110,18 @@ local function createDefaultProfile(): PlayerData
         PreferredHero = "StormforgeValen",
         Equipped = {
             Weapon = "IronWarhammer",
+            Offhand = nil,
             Chest = nil,
             Head = nil,
+            Legs = nil,
             Shoulders = "IronPauldrons",
+            Gloves = nil,
             Boots = nil,
+            Necklace = nil,
+            Ring = nil,
             Artifact = nil,
+            Cape = nil,
+            Relic = nil,
         },
         Inventory = startingInventory,
         QuestProgress = {},
@@ -115,7 +148,7 @@ local function migrateAndSanitize(data: any): PlayerData
 
     local default = createDefaultProfile()
 
-    data.Version = data.Version or DATA_VERSION
+    data.Version = DATA_VERSION
     data.Level = data.Level or default.Level
     data.XP = data.XP or default.XP
     data.Gold = data.Gold or default.Gold
@@ -128,6 +161,17 @@ local function migrateAndSanitize(data: any): PlayerData
     data.Achievements = data.Achievements or default.Achievements
     data.Titles = data.Titles or default.Titles
     data.Stats = data.Stats or default.Stats
+
+    -- Ensure all 13 gear slots exist in Equipped table
+    local ALL_SLOTS = {
+        "Weapon", "Offhand", "Chest", "Head", "Legs", "Shoulders",
+        "Gloves", "Boots", "Necklace", "Ring", "Artifact", "Cape", "Relic"
+    }
+    for _, slot in ipairs(ALL_SLOTS) do
+        if data.Equipped[slot] == nil and default.Equipped[slot] ~= nil then
+            data.Equipped[slot] = default.Equipped[slot]
+        end
+    end
 
     -- Ensure sub-stats exist
     data.Stats.PlayTime = data.Stats.PlayTime or 0
@@ -179,6 +223,7 @@ function PlayerDataService.LoadPlayerData(player: Player): PlayerData
     end
 
     sessionData[userId] = profile
+    backupData[userId] = deepCopy(profile)
     isLoaded[userId] = true
     isDirty[userId] = false
 
@@ -190,6 +235,26 @@ function PlayerDataService.LoadPlayerData(player: Player): PlayerData
     return profile
 end
 
+function PlayerDataService.RollbackToBackup(player: Player): boolean
+    local userId = player.UserId
+    local backup = backupData[userId]
+    if not backup then
+        warn(string.format("[PlayerDataService] No backup snapshot exists for %s", player.Name))
+        return false
+    end
+
+    sessionData[userId] = deepCopy(backup)
+    isDirty[userId] = false
+
+    -- Resync attributes
+    player:SetAttribute("Level", backup.Level)
+    player:SetAttribute("XP", backup.XP)
+    player:SetAttribute("Gold", backup.Gold)
+
+    warn(string.format("[PlayerDataService] *** CORRUPTION RECOVERY *** Restored %s to verified backup snapshot.", player.Name))
+    return true
+end
+
 function PlayerDataService.SavePlayerData(player: Player): boolean
     local userId = player.UserId
     local key = "Player_" .. userId
@@ -199,11 +264,19 @@ function PlayerDataService.SavePlayerData(player: Player): boolean
         return false
     end
 
+    -- Strict pre-save validation
+    if not validateSchema(data) then
+        warn(string.format("[PlayerDataService] CRITICAL: Schema validation failed for %s. Aborting save to prevent corruption.", player.Name))
+        PlayerDataService.RollbackToBackup(player)
+        return false
+    end
+
     -- Update last login / active time
     data.Stats.LastLogin = os.time()
 
     if not isDataStoreAvailable or not playerDataStore then
         isDirty[userId] = false
+        backupData[userId] = deepCopy(data)
         return true
     end
 
@@ -216,6 +289,7 @@ function PlayerDataService.SavePlayerData(player: Player): boolean
         if ok then
             saveSuccess = true
             isDirty[userId] = false
+            backupData[userId] = deepCopy(data)
             print(string.format("[PlayerDataService] Successfully saved data for %s", player.Name))
             break
         else
@@ -281,6 +355,7 @@ Players.PlayerRemoving:Connect(function(player: Player)
     if isLoaded[userId] then
         PlayerDataService.SavePlayerData(player)
         sessionData[userId] = nil
+        backupData[userId] = nil
         isLoaded[userId] = nil
         isDirty[userId] = nil
     end

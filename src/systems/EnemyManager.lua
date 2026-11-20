@@ -75,8 +75,26 @@ function EnemyManager.SpawnEnemy(enemyType: string, position: Vector3): Model
     body.Name = "Torso"
     body.Size = Vector3.new(2.4, 2.4, 2.4)
     body.CFrame = CFrame.new(position)
-    body.Color = if enemyType == "TempestDrone" then Color3.fromRGB(45, 55, 75) else Color3.fromRGB(120, 35, 45)
-    body.Material = Enum.Material.Metal
+    local bodyColor = Color3.fromRGB(45, 55, 75)
+    local bodyMaterial = Enum.Material.Metal
+    local coreColor = Color3.fromRGB(255, 75, 75)
+
+    if enemyType == "FrostGolem" then
+        bodyColor = Color3.fromRGB(160, 210, 245)
+        bodyMaterial = Enum.Material.Ice
+        coreColor = Color3.fromRGB(100, 230, 255)
+    elseif enemyType == "MagmaStalker" then
+        bodyColor = Color3.fromRGB(55, 25, 20)
+        bodyMaterial = Enum.Material.Basalt
+        coreColor = Color3.fromRGB(255, 90, 20)
+    elseif enemyType == "StormBeast" then
+        bodyColor = Color3.fromRGB(120, 35, 45)
+        bodyMaterial = Enum.Material.Metal
+        coreColor = Color3.fromRGB(255, 160, 40)
+    end
+
+    body.Color = bodyColor
+    body.Material = bodyMaterial
     body.CanCollide = true
     body.Anchored = false
     body.Parent = enemy
@@ -92,7 +110,7 @@ function EnemyManager.SpawnEnemy(enemyType: string, position: Vector3): Model
     core.Shape = Enum.PartType.Ball
     core.Size = Vector3.new(1.2, 1.2, 1.2)
     core.CFrame = CFrame.new(position)
-    core.Color = Color3.fromRGB(255, 75, 75)
+    core.Color = coreColor
     core.Material = Enum.Material.Neon
     core.CanCollide = false
     core.Anchored = false
@@ -103,11 +121,32 @@ function EnemyManager.SpawnEnemy(enemyType: string, position: Vector3): Model
     coreWeld.Part1 = core
     coreWeld.Parent = core
 
-    local isDrone = (enemyType == "TempestDrone")
-    local level = if isDrone then 3 else 6
-    local maxHp = if isDrone then 120 else 300
-    local xpReward = if isDrone then 50 else 150
-    local goldReward = if isDrone then 25 else 100
+    local level = 3
+    local maxHp = 120
+    local xpReward = 50
+    local goldReward = 25
+
+    if enemyType == "TempestDrone" then
+        level = 3
+        maxHp = 120
+        xpReward = 50
+        goldReward = 25
+    elseif enemyType == "StormBeast" then
+        level = 6
+        maxHp = 300
+        xpReward = 150
+        goldReward = 100
+    elseif enemyType == "FrostGolem" then
+        level = 10
+        maxHp = 500
+        xpReward = 280
+        goldReward = 180
+    elseif enemyType == "MagmaStalker" then
+        level = 12
+        maxHp = 420
+        xpReward = 320
+        goldReward = 220
+    end
 
     -- 15% Chance to roll an Elite Variant
     local isElite = (math.random() <= 0.15)
@@ -325,15 +364,18 @@ function EnemyManager.OnEnemyDefeated(enemy: Model)
     end)
 end
 
--- Initialize spawning at marked nodes
+-- Initialize spawning at marked nodes across all world zones
 function EnemyManager.InitNodes()
-    local wilds = Workspace:FindFirstChild("Zone_TempestWilds")
-    local nodesFolder = wilds and wilds:FindFirstChild("EnemySpawnNodes")
-    if nodesFolder then
-        for _, node in ipairs(nodesFolder:GetChildren()) do
-            if node:IsA("BasePart") then
-                local eType = node:GetAttribute("EnemyType") or "TempestDrone"
-                EnemyManager.SpawnEnemy(eType, node.Position)
+    local zoneNames = { "Zone_TempestWilds", "Zone_FrozenPeaks", "Zone_VolcanicWastes" }
+    for _, zName in ipairs(zoneNames) do
+        local zone = Workspace:FindFirstChild(zName)
+        local nodesFolder = zone and zone:FindFirstChild("EnemySpawnNodes")
+        if nodesFolder then
+            for _, node in ipairs(nodesFolder:GetChildren()) do
+                if node:IsA("BasePart") then
+                    local eType = node:GetAttribute("EnemyType") or "TempestDrone"
+                    EnemyManager.SpawnEnemy(eType, node.Position)
+                end
             end
         end
     end

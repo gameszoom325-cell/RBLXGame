@@ -206,6 +206,70 @@ function LobbyBuilder.BuildLobby(): Folder
     signText.Parent = portalBillboard
     portalBillboard.Parent = portalGate
 
+    -- Portal 2: The Frozen Peaks (Left Flank)
+    local frostPortal = Instance.new("Model")
+    frostPortal.Name = "FrozenPeaksPortal"
+
+    local frostGate = Instance.new("Part")
+    frostGate.Name = "TeleportGatePart"
+    frostGate.Shape = Enum.PartType.Cylinder
+    frostGate.Size = Vector3.new(0.4, 10, 10)
+    frostGate.CFrame = CFrame.new(-24, 7.5, 52)
+    frostGate.Color = Color3.fromRGB(140, 220, 255)
+    frostGate.Material = Enum.Material.Neon
+    frostGate.Transparency = 0.35
+    frostGate.Anchored = true
+    frostGate.CanCollide = false
+    frostGate:SetAttribute("TargetZone", "FrozenPeaks")
+    frostGate.Parent = frostPortal
+
+    local frostBillboard = Instance.new("BillboardGui")
+    frostBillboard.Size = UDim2.new(0, 200, 0, 40)
+    frostBillboard.StudsOffset = Vector3.new(0, 6.5, 0)
+    frostBillboard.AlwaysOnTop = true
+    local frostText = Instance.new("TextLabel")
+    frostText.Size = UDim2.new(1, 0, 1, 0)
+    frostText.BackgroundTransparency = 1
+    frostText.Text = "THE FROZEN PEAKS"
+    frostText.TextColor3 = Color3.fromRGB(150, 225, 255)
+    frostText.Font = Enum.Font.GothamBold
+    frostText.TextSize = 14
+    frostText.Parent = frostBillboard
+    frostBillboard.Parent = frostGate
+    frostPortal.Parent = portalArea
+
+    -- Portal 3: The Volcanic Wastes (Right Flank)
+    local volcanicPortal = Instance.new("Model")
+    volcanicPortal.Name = "VolcanicWastesPortal"
+
+    local volcanicGate = Instance.new("Part")
+    volcanicGate.Name = "TeleportGatePart"
+    volcanicGate.Shape = Enum.PartType.Cylinder
+    volcanicGate.Size = Vector3.new(0.4, 10, 10)
+    volcanicGate.CFrame = CFrame.new(24, 7.5, 52)
+    volcanicGate.Color = Color3.fromRGB(255, 95, 30)
+    volcanicGate.Material = Enum.Material.Neon
+    volcanicGate.Transparency = 0.35
+    volcanicGate.Anchored = true
+    volcanicGate.CanCollide = false
+    volcanicGate:SetAttribute("TargetZone", "VolcanicWastes")
+    volcanicGate.Parent = volcanicPortal
+
+    local volcanicBillboard = Instance.new("BillboardGui")
+    volcanicBillboard.Size = UDim2.new(0, 200, 0, 40)
+    volcanicBillboard.StudsOffset = Vector3.new(0, 6.5, 0)
+    volcanicBillboard.AlwaysOnTop = true
+    local volcanicText = Instance.new("TextLabel")
+    volcanicText.Size = UDim2.new(1, 0, 1, 0)
+    volcanicText.BackgroundTransparency = 1
+    volcanicText.Text = "THE VOLCANIC WASTES"
+    volcanicText.TextColor3 = Color3.fromRGB(255, 140, 50)
+    volcanicText.Font = Enum.Font.GothamBold
+    volcanicText.TextSize = 14
+    volcanicText.Parent = volcanicBillboard
+    volcanicBillboard.Parent = volcanicGate
+    volcanicPortal.Parent = portalArea
+
     portalArea.Parent = lobby
 
     -- 5. Training Area Entrance (East Wing)

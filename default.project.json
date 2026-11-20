@@ -114,6 +114,21 @@
         },
         "AchievementUnlocked": {
           "$className": "RemoteEvent"
+        },
+        "CraftingAction": {
+          "$className": "RemoteEvent"
+        },
+        "CraftingResponse": {
+          "$className": "RemoteEvent"
+        },
+        "WeatherChanged": {
+          "$className": "RemoteEvent"
+        },
+        "CombatFeedback": {
+          "$className": "RemoteEvent"
+        },
+        "AudioEvent": {
+          "$className": "RemoteEvent"
         }
       }
     },

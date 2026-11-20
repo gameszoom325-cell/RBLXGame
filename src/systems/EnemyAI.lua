@@ -22,23 +22,27 @@ type EnemyAIState = {
     state: AIState,
     lastAttackTime: number,
     lastAbilityTime: number,
+    lastDodgeTime: number,
+    dodgeOffset: Vector3,
     homePosition: Vector3,
     patrolTarget: Vector3?,
     lastPatrolSwitch: number,
+    threatStartTime: number?,
 }
 
 local EnemyAI = {}
 local enemyStates: { [Model]: EnemyAIState } = {}
 
+-- Zero-allocation cached RaycastParams for Line of Sight
+local cachedRaycastParams = RaycastParams.new()
+cachedRaycastParams.FilterType = Enum.RaycastFilterType.Exclude
+cachedRaycastParams.IgnoreWater = true
+
 -- Utility for Line of Sight Raycasting
 local function hasLineOfSight(origin: Vector3, targetPos: Vector3, enemyModel: Model, targetChar: Model): boolean
-    local raycastParams = RaycastParams.new()
-    raycastParams.FilterType = Enum.RaycastFilterType.Exclude
-    raycastParams.FilterDescendantsInstances = { enemyModel, targetChar }
-    raycastParams.IgnoreWater = true
-
+    cachedRaycastParams.FilterDescendantsInstances = { enemyModel, targetChar }
     local dir = (targetPos - origin)
-    local result = Workspace:Raycast(origin, dir, raycastParams)
+    local result = Workspace:Raycast(origin, dir, cachedRaycastParams)
     return result == nil or result.Instance == nil or result.Instance.CanCollide == false
 end
 
@@ -162,6 +166,73 @@ local function executeBeastAttack(beast: Model, targetHrp: BasePart)
     end
 end
 
+-- Frost Golem: Executes a glacial ground freeze slam
+local function executeFrostGolemAttack(golem: Model, targetHrp: BasePart)
+    local golemHrp = golem:FindFirstChild("HumanoidRootPart") :: BasePart?
+    if not golemHrp then return end
+    local origin = golemHrp.Position
+
+    local frostWave = Instance.new("Part")
+    frostWave.Name = "FrostShockwave"
+    frostWave.Shape = Enum.PartType.Cylinder
+    frostWave.Size = Vector3.new(0.3, 3, 3)
+    frostWave.CFrame = CFrame.new(origin.X, origin.Y - 1, origin.Z) * CFrame.Angles(0, 0, math.rad(90))
+    frostWave.Color = Color3.fromRGB(130, 225, 255)
+    frostWave.Material = Enum.Material.Ice
+    frostWave.Anchored = true
+    frostWave.CanCollide = false
+    frostWave.Parent = Workspace
+
+    local tween = TweenService:Create(frostWave, TweenInfo.new(0.4, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+        Size = Vector3.new(0.1, 18, 18),
+        Transparency = 1,
+    })
+    tween:Play()
+    tween.Completed:Connect(function()
+        frostWave:Destroy()
+    end)
+
+    for _, player in ipairs(Players:GetPlayers()) do
+        local character = player.Character
+        local hrp = character and character:FindFirstChild("HumanoidRootPart") :: BasePart?
+        if character and hrp and (hrp.Position - origin).Magnitude <= 12.0 then
+            damagePlayer(character, 36, "FrostGolem")
+        end
+    end
+end
+
+-- Magma Stalker: Executes a flaming lunging swipe
+local function executeMagmaStalkerAttack(stalker: Model, targetHrp: BasePart)
+    local sHrp = stalker:FindFirstChild("HumanoidRootPart") :: BasePart?
+    if not sHrp then return end
+    local origin = sHrp.Position
+
+    local flameBurst = Instance.new("Part")
+    flameBurst.Name = "MagmaBurst"
+    flameBurst.Shape = Enum.PartType.Ball
+    flameBurst.Size = Vector3.new(4, 4, 4)
+    flameBurst.CFrame = CFrame.new(origin:Lerp(targetHrp.Position, 0.5))
+    flameBurst.Color = Color3.fromRGB(255, 95, 25)
+    flameBurst.Material = Enum.Material.Neon
+    flameBurst.Anchored = true
+    flameBurst.CanCollide = false
+    flameBurst.Parent = Workspace
+
+    local tween = TweenService:Create(flameBurst, TweenInfo.new(0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+        Size = Vector3.new(9, 9, 9),
+        Transparency = 1,
+    })
+    tween:Play()
+    tween.Completed:Connect(function()
+        flameBurst:Destroy()
+    end)
+
+    local char = targetHrp.Parent :: Model?
+    if char then
+        damagePlayer(char, 32, "MagmaStalker")
+    end
+end
+
 -- Throttled Heartbeat state loop
 local lastTick = 0
 RunService.Heartbeat:Connect(function()
@@ -187,9 +258,12 @@ RunService.Heartbeat:Connect(function()
                 state = "IDLE",
                 lastAttackTime = 0,
                 lastAbilityTime = 0,
+                lastDodgeTime = 0,
+                dodgeOffset = Vector3.zero,
                 homePosition = data.respawnNode,
                 patrolTarget = nil,
                 lastPatrolSwitch = now,
+                threatStartTime = nil,
             }
             enemyStates[enemyModel] = ai
         end
@@ -200,8 +274,19 @@ RunService.Heartbeat:Connect(function()
         local attackRadius = if isDrone then DRONE_ATTACK_RADIUS else BEAST_ATTACK_RADIUS
         local attackCooldown = if isDrone then (if isElite then 1.8 else DRONE_ATTACK_COOLDOWN) else (if isElite then 1.3 else BEAST_ATTACK_COOLDOWN)
 
-        -- Group Aggro support: Check if ally alerted this enemy to an attacker
+        -- Group Aggro & Threat Decay
         local aggroName = enemyModel:GetAttribute("AggroTarget") :: string?
+        if aggroName then
+            if not ai.threatStartTime then
+                ai.threatStartTime = now
+            elseif now - ai.threatStartTime > 7.0 then
+                -- Threat decay: reset aggro target after 7 seconds without refreshed hostility
+                enemyModel:SetAttribute("AggroTarget", nil)
+                ai.threatStartTime = nil
+                aggroName = nil
+            end
+        end
+
         local aggroPlayer = if aggroName then Players:FindFirstChild(aggroName) else nil
         local targetChar: Model? = nil
         local distToTarget = 999.0
@@ -214,6 +299,7 @@ RunService.Heartbeat:Connect(function()
                 distToTarget = (aHrp.Position - hrp.Position).Magnitude
             else
                 enemyModel:SetAttribute("AggroTarget", nil)
+                ai.threatStartTime = nil
             end
         end
 
@@ -248,14 +334,31 @@ RunService.Heartbeat:Connect(function()
         enemyModel:SetAttribute("AIState", ai.state)
 
         -- State Execution
+        -- Tactical Dodge Step Calculation
+        if (ai.state == "CHASE" or ai.state == "ATTACK") and distToTarget < 16.0 then
+            if now - ai.lastDodgeTime > 5.5 and math.random() <= 0.30 then
+                ai.lastDodgeTime = now
+                local dodgeDir = if math.random() > 0.5 then 1 else -1
+                local lateral = Vector3.new(-hrp.CFrame.LookVector.Z, 0, hrp.CFrame.LookVector.X).Unit
+                ai.dodgeOffset = lateral * (dodgeDir * 6.5)
+            end
+        end
+        if now - ai.lastDodgeTime > 0.35 then
+            ai.dodgeOffset = Vector3.zero
+        end
+
+        -- Smooth Orbital Circle Strafing / Flanking
+        local strafeAngle = (now * 1.1)
+        local strafeOffset = Vector3.new(math.cos(strafeAngle) * (if isDrone then 5.0 else 3.0), 0, math.sin(strafeAngle) * (if isDrone then 5.0 else 3.0))
+
         if ai.state == "CHASE" and targetChar then
             local targetHrp = targetChar:FindFirstChild("HumanoidRootPart") :: BasePart?
             if targetHrp then
                 local targetPos = targetHrp.Position
                 if isDrone then
-                    bodyPos.Position = targetPos + Vector3.new(0, 5, 0)
+                    bodyPos.Position = targetPos + Vector3.new(0, 5, 0) + strafeOffset + ai.dodgeOffset
                 else
-                    bodyPos.Position = Vector3.new(targetPos.X, ai.homePosition.Y + 1.5, targetPos.Z)
+                    bodyPos.Position = Vector3.new(targetPos.X, ai.homePosition.Y + 1.5, targetPos.Z) + strafeOffset + ai.dodgeOffset
                 end
                 hrp.CFrame = CFrame.new(hrp.Position, Vector3.new(targetPos.X, hrp.Position.Y, targetPos.Z))
             end
@@ -269,6 +372,10 @@ RunService.Heartbeat:Connect(function()
                     ai.lastAttackTime = now
                     if isDrone then
                         executeDroneAttack(enemyModel, targetHrp)
+                    elseif data.enemyType == "FrostGolem" then
+                        executeFrostGolemAttack(enemyModel, targetHrp)
+                    elseif data.enemyType == "MagmaStalker" then
+                        executeMagmaStalkerAttack(enemyModel, targetHrp)
                     else
                         executeBeastAttack(enemyModel, targetHrp)
                     end
