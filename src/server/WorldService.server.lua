@@ -22,6 +22,7 @@ local ZoneManager = require(Systems:WaitForChild("ZoneManager"))
 local EnemyManager = require(Systems:WaitForChild("EnemyManager"))
 local EnemyAI = require(Systems:WaitForChild("EnemyAI"))
 local QuestManager = require(Systems:WaitForChild("QuestManager"))
+local ShopManager = require(Systems:WaitForChild("ShopManager"))
 
 local networkFolder = ReplicatedStorage:WaitForChild("Network")
 local showDialogueEvent = networkFolder:WaitForChild("ShowDialogue") :: RemoteEvent
@@ -31,6 +32,13 @@ local function hookNPCInteractions()
     ProximityPromptService.PromptTriggered:Connect(function(prompt: ProximityPrompt, player: Player)
         local parentModel = prompt.Parent and prompt.Parent.Parent
         local modelName = parentModel and parentModel.Name
+
+        local merchantId = parentModel and parentModel:GetAttribute("MerchantId") :: string?
+        if merchantId then
+            ShopManager.OpenMerchant(player, merchantId)
+            print(string.format("[WorldService] %s opened shop for %s", player.Name, merchantId))
+            return
+        end
 
         if modelName == "Archivist Orin" then
             local npcData = NPCConfig.ArchivistOrin

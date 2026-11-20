@@ -10,6 +10,11 @@
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
+local Systems = ReplicatedStorage:WaitForChild("Systems")
+local PlayerDataService = require(Systems:WaitForChild("PlayerDataService"))
+local ProgressionManager = require(Systems:WaitForChild("ProgressionManager"))
+local EconomyManager = require(Systems:WaitForChild("EconomyManager"))
+
 export type QuestDefinition = {
     id: string,
     title: string,
@@ -124,21 +129,17 @@ function QuestManager.ClaimReward(player: Player, questId: string): boolean
     if not progress.isCompleted or progress.isClaimed or not def then return false end
 
     progress.isClaimed = true
-    local stats = playerStats[userId]
-    stats.gold += def.rewards.gold
-    stats.xp += def.rewards.xp
 
-    -- Level calculation
-    if stats.xp >= (stats.level * 200) then
-        stats.level += 1
-        print(string.format("[QuestManager] %s leveled up to Level %d!", player.Name, stats.level))
-    end
+    -- Authoritative Progression & Economy Integration
+    ProgressionManager.AddXP(player, def.rewards.xp, "Quest:" .. def.title)
+    EconomyManager.AddGold(player, def.rewards.gold, "Quest:" .. def.title)
 
-    player:SetAttribute("Gold", stats.gold)
-    player:SetAttribute("XP", stats.xp)
-    player:SetAttribute("Level", stats.level)
+    PlayerDataService.UpdatePlayerData(player, function(pData)
+        pData.Stats.QuestsCompleted += 1
+    end)
 
-    rewardClaimedEvent:FireClient(player, def.title, def.rewards.gold, def.rewards.xp, stats.level)
+    local currentLevel = ProgressionManager.GetLevel(player)
+    rewardClaimedEvent:FireClient(player, def.title, def.rewards.gold, def.rewards.xp, currentLevel)
     print(string.format("[QuestManager] Player %s claimed rewards for '%s' (+%d Gold, +%d XP)", player.Name, def.title, def.rewards.gold, def.rewards.xp))
     return true
 end

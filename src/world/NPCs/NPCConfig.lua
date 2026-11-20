@@ -37,6 +37,50 @@ local NPCConfig: { [string]: NPCSpec } = {
         dialogueGreeting = "Welcome, Stormforge Valen. Test your hammer swings and lightning abilities against the dummies before entering the portals.",
         color = Color3.fromRGB(200, 160, 40),
     },
+
+    WeaponMerchant = {
+        id = "WeaponMerchant",
+        name = "Weaponsmith Garrick",
+        title = "Grand Armorer",
+        role = "Merchant",
+        position = Vector3.new(-45, 1, 25),
+        lookDirection = Vector3.new(1, 0, 0),
+        dialogueGreeting = "Need steel to smash through rogue drones? My warhammers and blades are balanced to perfection.",
+        color = Color3.fromRGB(180, 80, 50),
+    },
+
+    ArmorMerchant = {
+        id = "ArmorMerchant",
+        name = "Vanguard Vane",
+        title = "Plate Master",
+        role = "Merchant",
+        position = Vector3.new(-45, 1, 40),
+        lookDirection = Vector3.new(1, 0, 0),
+        dialogueGreeting = "A single lightning surge from a Storm Beast will tear unshielded flesh. Suit up before heading out.",
+        color = Color3.fromRGB(80, 110, 190),
+    },
+
+    PotionMerchant = {
+        id = "PotionMerchant",
+        name = "Alchemist Lyra",
+        title = "Apothecary of the Mists",
+        role = "Merchant",
+        position = Vector3.new(45, 1, 25),
+        lookDirection = Vector3.new(-1, 0, 0),
+        dialogueGreeting = "Brewed from tempest condensation and wild flora! Guaranteed to keep your heart pumping in the storm.",
+        color = Color3.fromRGB(60, 180, 120),
+    },
+
+    Blacksmith = {
+        id = "Blacksmith",
+        name = "Forge Master Keith",
+        title = "Master of the Spark",
+        role = "Merchant",
+        position = Vector3.new(45, 1, 40),
+        lookDirection = Vector3.new(-1, 0, 0),
+        dialogueGreeting = "Bring me crystals, beast pelts, and relics. I will refine them or supply raw ingots for your journey.",
+        color = Color3.fromRGB(190, 140, 40),
+    },
 }
 
 return NPCConfig

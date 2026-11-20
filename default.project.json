@@ -60,6 +60,30 @@
         },
         "RewardClaimed": {
           "$className": "RemoteEvent"
+        },
+        "DamageDealt": {
+          "$className": "RemoteEvent"
+        },
+        "LevelUpEvent": {
+          "$className": "RemoteEvent"
+        },
+        "InventoryAction": {
+          "$className": "RemoteEvent"
+        },
+        "InventoryUpdated": {
+          "$className": "RemoteEvent"
+        },
+        "OpenShop": {
+          "$className": "RemoteEvent"
+        },
+        "ShopAction": {
+          "$className": "RemoteEvent"
+        },
+        "ShopResponse": {
+          "$className": "RemoteEvent"
+        },
+        "PlayerStatsUpdated": {
+          "$className": "RemoteEvent"
         }
       }
     },

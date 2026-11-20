@@ -32,14 +32,17 @@ local MAX_LIGHTNING_STRIKE_DISTANCE = 60.0
 local MAX_LIGHTNING_DASH_DISTANCE = 30.0
 
 -- Radius damage utility for abilities against enemies in Workspace
-local function applyRadiusDamage(centerPos: Vector3, radius: number, damage: number, attacker: Player)
+local function applyRadiusDamage(centerPos: Vector3, radius: number, damage: number, attacker: Player, damageType: string?)
+    local bonusLightning = (attacker.Character and attacker.Character:GetAttribute("BonusLightningDamage")) or 0
+    local totalDamage = damage + bonusLightning
+
     for _, item in ipairs(Workspace:GetDescendants()) do
         if item:IsA("Model") and item:FindFirstChildOfClass("Humanoid") then
             -- Skip player characters
             if not Players:GetPlayerFromCharacter(item) then
                 local root = item.PrimaryPart or item:FindFirstChild("HumanoidRootPart") or item:FindFirstChild("Torso") :: BasePart?
                 if root and (root.Position - centerPos).Magnitude <= radius then
-                    EnemyManager.DamageEnemy(item, damage, attacker)
+                    EnemyManager.DamageEnemy(item, totalDamage, attacker, damageType or "Lightning")
                 end
             end
         end
@@ -74,13 +77,16 @@ local function validateAbilityCast(player: Player, abilityId: Types.AbilityId): 
         return false, nil
     end
 
-    -- Verify server-side cooldown
+    -- Verify server-side cooldown with equipment CooldownReduction
     local userId = player.UserId
     playerCooldowns[userId] = playerCooldowns[userId] or {}
     local lastCast = playerCooldowns[userId][abilityId] or 0
     local now = os.clock()
 
-    if now - lastCast < spec.cooldown then
+    local cdr = (character:GetAttribute("CooldownReduction") or 0)
+    local effectiveCooldown = spec.cooldown * (1 - math.clamp(cdr, 0, 0.40))
+
+    if now - lastCast < effectiveCooldown then
         -- Cooldown not ready
         return false, nil
     end

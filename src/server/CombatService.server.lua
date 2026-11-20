@@ -115,6 +115,18 @@ local function processAttack(player: Player)
     local hitModels: { [Model]: boolean } = {}
     local totalHits = 0
 
+    -- Dynamic damage calculation: Base Combo Damage + Attack Power Bonus
+    local attackPower = character:GetAttribute("AttackPower") or 25
+    local bonusAttack = attackPower - 25
+    local baseDamage = math.max(1, attackData.damage + bonusAttack)
+
+    -- Roll for Critical Strike (White = Normal, Yellow = Critical)
+    local critChance = character:GetAttribute("CritChance") or 0.05
+    local critDamageMultiplier = character:GetAttribute("CritDamage") or 1.50
+    local isCrit = (math.random() <= critChance)
+    local finalDamage = if isCrit then math.floor(baseDamage * critDamageMultiplier) else baseDamage
+    local damageType = if isCrit then "Critical" else "Normal"
+
     for _, part in ipairs(partsInHitbox) do
         local targetModel = part:FindFirstAncestorOfClass("Model")
         if targetModel and not hitModels[targetModel] and targetModel ~= character then
@@ -124,8 +136,8 @@ local function processAttack(player: Player)
                 hitModels[targetModel] = true
                 totalHits += 1
 
-                -- Apply damage server-side via EnemyManager
-                EnemyManager.DamageEnemy(targetModel, attackData.damage, player)
+                -- Apply damage server-side via EnemyManager with damageType
+                EnemyManager.DamageEnemy(targetModel, finalDamage, player, damageType)
             end
         end
     end

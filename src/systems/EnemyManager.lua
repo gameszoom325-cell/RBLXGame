@@ -10,8 +10,18 @@ local Workspace = game:GetService("Workspace")
 local TweenService = game:GetService("TweenService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
+local Shared = ReplicatedStorage:WaitForChild("Shared")
 local Systems = ReplicatedStorage:WaitForChild("Systems")
+
+local LootDatabase = require(Shared:WaitForChild("LootDatabase"))
 local QuestManager = require(Systems:WaitForChild("QuestManager"))
+local ProgressionManager = require(Systems:WaitForChild("ProgressionManager"))
+local EconomyManager = require(Systems:WaitForChild("EconomyManager"))
+local InventoryManager = require(Systems:WaitForChild("InventoryManager"))
+local PlayerDataService = require(Systems:WaitForChild("PlayerDataService"))
+
+local networkFolder = ReplicatedStorage:WaitForChild("Network")
+local damageDealtEvent = networkFolder:WaitForChild("DamageDealt") :: RemoteEvent
 
 local EnemyManager = {}
 
@@ -138,14 +148,19 @@ function EnemyManager.SpawnEnemy(enemyType: string, position: Vector3): Model
     return enemy
 end
 
-function EnemyManager.DamageEnemy(enemy: Model, damage: number, player: Player?)
+function EnemyManager.DamageEnemy(enemy: Model, damage: number, player: Player?, damageType: string?)
     local humanoid = enemy:FindFirstChildOfClass("Humanoid")
     if not humanoid or humanoid.Health <= 0 then return end
 
     local data = activeEnemies[enemy]
+    local hitPart = enemy.PrimaryPart or enemy:FindFirstChild("Torso") or enemy:FindFirstChild("HumanoidRootPart")
+    local hitPos = if hitPart and hitPart:IsA("BasePart") then hitPart.Position + Vector3.new(0, 1.5, 0) else Vector3.new(0, 5, 0)
 
     humanoid:TakeDamage(damage)
     enemy:SetAttribute("CurrentHealth", humanoid.Health)
+
+    -- Broadcast floating combat text to all clients
+    damageDealtEvent:FireAllClients(damage, hitPos, damageType or "Normal")
 
     if data then
         data.currentHp = humanoid.Health
@@ -164,16 +179,30 @@ function EnemyManager.DamageEnemy(enemy: Model, damage: number, player: Player?)
         if humanoid.Health <= 0 and not enemy:GetAttribute("IsDead") then
             enemy:SetAttribute("IsDead", true)
             if player then
-                -- Award XP and Gold to player attributes
-                local currentXp = player:GetAttribute("XP") or 0
-                local currentGold = player:GetAttribute("Gold") or 0
-                local xpGain = enemy:GetAttribute("XPReward") or 0
-                local goldGain = enemy:GetAttribute("GoldReward") or 0
-                player:SetAttribute("XP", currentXp + xpGain)
-                player:SetAttribute("Gold", currentGold + goldGain)
+                local xpGain = enemy:GetAttribute("XPReward") or data.maxHp
+                local baseGold = enemy:GetAttribute("GoldReward") or 25
 
+                -- Award XP through authoritative ProgressionManager
+                ProgressionManager.AddXP(player, xpGain, data.enemyType)
+
+                -- Roll and distribute weighted drops from LootDatabase
+                local rolledLoot = LootDatabase.RollLoot(data.enemyType)
+                local totalGold = baseGold + rolledLoot.gold
+                EconomyManager.AddGold(player, totalGold, data.enemyType)
+
+                for _, drop in ipairs(rolledLoot.items) do
+                    InventoryManager.AddItem(player, drop.id, drop.count)
+                end
+
+                -- Track statistics in persistent PlayerDataService
+                PlayerDataService.UpdatePlayerData(player, function(pData)
+                    pData.Stats.EnemyKills += 1
+                end)
+
+                -- Update quest objectives
                 QuestManager.ProgressObjective(player, "KillEnemy", 1)
-                print(string.format("[EnemyManager] %s defeated %s! (+%d XP, +%d Gold)", player.Name, data.enemyType, xpGain, goldGain))
+                print(string.format("[EnemyManager] %s defeated %s! (+%d XP, +%d Gold, %d item drops)",
+                    player.Name, data.enemyType, xpGain, totalGold, #rolledLoot.items))
             end
             EnemyManager.OnEnemyDefeated(enemy)
         end

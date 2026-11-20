@@ -286,8 +286,8 @@ function LobbyBuilder.BuildLobby(): Folder
 
     questBoard.Parent = lobby
 
-    -- 7. Spawn Friendly NPCs
-    local function spawnFriendlyNPC(name: string, title: string, cframe: CFrame, color: Color3)
+    -- 7. Spawn Friendly NPCs and Sanctuary Merchants
+    local function spawnFriendlyNPC(name: string, title: string, cframe: CFrame, color: Color3, merchantId: string?)
         local npc = Instance.new("Model")
         npc.Name = name
 
@@ -327,17 +327,28 @@ function LobbyBuilder.BuildLobby(): Folder
         humanoid.Parent = npc
 
         local prompt = Instance.new("ProximityPrompt")
-        prompt.ActionText = "Talk"
+        prompt.ActionText = if merchantId then "Trade / Browse" else "Talk"
         prompt.ObjectText = title
         prompt.HoldDuration = 0
         prompt.MaxActivationDistance = 12
         prompt.Parent = torso
 
+        if merchantId then
+            npc:SetAttribute("MerchantId", merchantId)
+        end
+
         npc.Parent = lobby
     end
 
+    -- Quest & Combat Guides
     spawnFriendlyNPC("Archivist Orin", "Keeper of Records", CFrame.new(-32, 2, 8) * CFrame.Angles(0, math.rad(90), 0), Color3.fromRGB(65, 140, 215))
     spawnFriendlyNPC("Instructor Kael", "Master-at-Arms", CFrame.new(48, 2, 0) * CFrame.Angles(0, math.rad(-90), 0), Color3.fromRGB(210, 160, 45))
+
+    -- Sanctuary Market Merchants
+    spawnFriendlyNPC("Weaponsmith Garrick", "Grand Armorer", CFrame.new(-45, 2, 25) * CFrame.Angles(0, math.rad(90), 0), Color3.fromRGB(180, 80, 50), "WeaponMerchant")
+    spawnFriendlyNPC("Vanguard Vane", "Plate Master", CFrame.new(-45, 2, 40) * CFrame.Angles(0, math.rad(90), 0), Color3.fromRGB(80, 110, 190), "ArmorMerchant")
+    spawnFriendlyNPC("Alchemist Lyra", "Apothecary of the Mists", CFrame.new(45, 2, 25) * CFrame.Angles(0, math.rad(-90), 0), Color3.fromRGB(60, 180, 120), "PotionMerchant")
+    spawnFriendlyNPC("Forge Master Keith", "Master of the Spark", CFrame.new(45, 2, 40) * CFrame.Angles(0, math.rad(-90), 0), Color3.fromRGB(190, 140, 40), "Blacksmith")
 
     print("[LobbyBuilder] Grand Storm Sanctuary Main Lobby constructed successfully.")
     return lobby
