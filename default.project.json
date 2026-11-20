@@ -84,6 +84,36 @@
         },
         "PlayerStatsUpdated": {
           "$className": "RemoteEvent"
+        },
+        "PartyAction": {
+          "$className": "RemoteEvent"
+        },
+        "PartyUpdated": {
+          "$className": "RemoteEvent"
+        },
+        "PartyInviteReceived": {
+          "$className": "RemoteEvent"
+        },
+        "DungeonAction": {
+          "$className": "RemoteEvent"
+        },
+        "DungeonStateUpdated": {
+          "$className": "RemoteEvent"
+        },
+        "DungeonResults": {
+          "$className": "RemoteEvent"
+        },
+        "BossStateUpdated": {
+          "$className": "RemoteEvent"
+        },
+        "WorldEventUpdated": {
+          "$className": "RemoteEvent"
+        },
+        "PlayCinematic": {
+          "$className": "RemoteEvent"
+        },
+        "AchievementUnlocked": {
+          "$className": "RemoteEvent"
         }
       }
     },

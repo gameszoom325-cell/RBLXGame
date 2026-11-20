@@ -19,6 +19,7 @@ local ProgressionManager = require(Systems:WaitForChild("ProgressionManager"))
 local EconomyManager = require(Systems:WaitForChild("EconomyManager"))
 local InventoryManager = require(Systems:WaitForChild("InventoryManager"))
 local PlayerDataService = require(Systems:WaitForChild("PlayerDataService"))
+local PartyService = require(Systems:WaitForChild("PartyService"))
 
 local networkFolder = ReplicatedStorage:WaitForChild("Network")
 local damageDealtEvent = networkFolder:WaitForChild("DamageDealt") :: RemoteEvent
@@ -108,6 +109,31 @@ function EnemyManager.SpawnEnemy(enemyType: string, position: Vector3): Model
     local xpReward = if isDrone then 50 else 150
     local goldReward = if isDrone then 25 else 100
 
+    -- 15% Chance to roll an Elite Variant
+    local isElite = (math.random() <= 0.15)
+    local elitePrefixes = { "Electrified", "Thunderforged", "Tempest-Crowned" }
+    local elitePrefix = if isElite then elitePrefixes[math.random(1, #elitePrefixes)] else nil
+
+    if isElite and elitePrefix then
+        maxHp = math.floor(maxHp * 2.5)
+        xpReward = math.floor(xpReward * 3.0)
+        goldReward = math.floor(goldReward * 3.0)
+        level += 2
+
+        enemy:SetAttribute("IsElite", true)
+        enemy:SetAttribute("ElitePrefix", elitePrefix)
+
+        -- Distinctive Elite Glowing Particle Aura
+        local aura = Instance.new("ParticleEmitter")
+        aura.Color = ColorSequence.new(Color3.fromRGB(255, 215, 60), Color3.fromRGB(65, 225, 255))
+        aura.Size = NumberSequence.new(0.6, 1.2)
+        aura.Rate = 25
+        aura.Speed = NumberRange.new(2, 5)
+        aura.Parent = body
+
+        print(string.format("[EnemyManager] *** ELITE SIGHTED! *** A %s %s [Lv. %d] appeared!", elitePrefix, enemyType, level))
+    end
+
     enemy:SetAttribute("EnemyType", enemyType)
     enemy:SetAttribute("Level", level)
     enemy:SetAttribute("MaxHealth", maxHp)
@@ -118,7 +144,9 @@ function EnemyManager.SpawnEnemy(enemyType: string, position: Vector3): Model
     local humanoid = Instance.new("Humanoid")
     humanoid.MaxHealth = maxHp
     humanoid.Health = maxHp
-    humanoid.DisplayName = string.format("%s [Lv. %d]", enemyType, level)
+    humanoid.DisplayName = if isElite and elitePrefix
+        then string.format("[Elite] %s %s [Lv. %d]", elitePrefix, enemyType, level)
+        else string.format("%s [Lv. %d]", enemyType, level)
     humanoid.DisplayDistanceType = Enum.HumanoidDisplayDistanceType.AlwaysOn
     humanoid.Parent = enemy
 
@@ -152,6 +180,18 @@ function EnemyManager.DamageEnemy(enemy: Model, damage: number, player: Player?,
     local humanoid = enemy:FindFirstChildOfClass("Humanoid")
     if not humanoid or humanoid.Health <= 0 then return end
 
+    -- Check if target is a Boss (e.g. Storm Titan)
+    if enemy:GetAttribute("EnemyType") == "Boss" then
+        local bossManagerModule = Systems:FindFirstChild("BossManager")
+        if bossManagerModule then
+            local BossManager = require(bossManagerModule) :: any
+            if BossManager.DamageBoss and player then
+                BossManager.DamageBoss(enemy, damage, player)
+            end
+        end
+        return
+    end
+
     local data = activeEnemies[enemy]
     local hitPart = enemy.PrimaryPart or enemy:FindFirstChild("Torso") or enemy:FindFirstChild("HumanoidRootPart")
     local hitPos = if hitPart and hitPart:IsA("BasePart") then hitPart.Position + Vector3.new(0, 1.5, 0) else Vector3.new(0, 5, 0)
@@ -161,6 +201,18 @@ function EnemyManager.DamageEnemy(enemy: Model, damage: number, player: Player?,
 
     -- Broadcast floating combat text to all clients
     damageDealtEvent:FireAllClients(damage, hitPos, damageType or "Normal")
+
+    -- Group Aggro: Alert nearby allies within 35 studs
+    if player and player.Character and player.Character.PrimaryPart then
+        for otherModel, _ in pairs(activeEnemies) do
+            if otherModel ~= enemy and otherModel.Parent and not otherModel:GetAttribute("IsDead") then
+                local oRoot = otherModel.PrimaryPart
+                if oRoot and (oRoot.Position - hitPos).Magnitude <= 35.0 then
+                    otherModel:SetAttribute("AggroTarget", player.Name)
+                end
+            end
+        end
+    end
 
     if data then
         data.currentHp = humanoid.Health
@@ -182,22 +234,38 @@ function EnemyManager.DamageEnemy(enemy: Model, damage: number, player: Player?,
                 local xpGain = enemy:GetAttribute("XPReward") or data.maxHp
                 local baseGold = enemy:GetAttribute("GoldReward") or 25
 
-                -- Award XP through authoritative ProgressionManager
-                ProgressionManager.AddXP(player, xpGain, data.enemyType)
+                -- Award Shared Party XP (with +15% per nearby party member bonus)
+                PartyService.DistributeSharedXP(player, xpGain, data.enemyType)
 
-                -- Roll and distribute weighted drops from LootDatabase
+                -- Roll and distribute weighted drops from LootDatabase to party
                 local rolledLoot = LootDatabase.RollLoot(data.enemyType)
                 local totalGold = baseGold + rolledLoot.gold
-                EconomyManager.AddGold(player, totalGold, data.enemyType)
-
-                for _, drop in ipairs(rolledLoot.items) do
-                    InventoryManager.AddItem(player, drop.id, drop.count)
-                end
+                PartyService.DistributeSharedLoot(player, totalGold, rolledLoot.items, data.enemyType)
 
                 -- Track statistics in persistent PlayerDataService
                 PlayerDataService.UpdatePlayerData(player, function(pData)
                     pData.Stats.EnemyKills += 1
                 end)
+
+                -- Check milestone achievements
+                local achModule = Systems:FindFirstChild("AchievementManager")
+                if achModule then
+                    local AchievementManager = require(achModule) :: any
+                    if AchievementManager.CheckStatMilestones then
+                        AchievementManager.CheckStatMilestones(player)
+                    end
+                end
+
+                -- Dungeon Guardian Objective Check
+                if enemy:GetAttribute("IsGuardian") == true then
+                    local dungeonModule = Systems:FindFirstChild("DungeonManager")
+                    if dungeonModule then
+                        local DungeonManager = require(dungeonModule) :: any
+                        if DungeonManager.ProgressObjective then
+                            DungeonManager.ProgressObjective("Guardians", 1)
+                        end
+                    end
+                end
 
                 -- Update quest objectives
                 QuestManager.ProgressObjective(player, "KillEnemy", 1)

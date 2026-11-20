@@ -23,6 +23,8 @@ local EnemyManager = require(Systems:WaitForChild("EnemyManager"))
 local EnemyAI = require(Systems:WaitForChild("EnemyAI"))
 local QuestManager = require(Systems:WaitForChild("QuestManager"))
 local ShopManager = require(Systems:WaitForChild("ShopManager"))
+local PartyService = require(Systems:WaitForChild("PartyService"))
+local DungeonManager = require(Systems:WaitForChild("DungeonManager"))
 
 local networkFolder = ReplicatedStorage:WaitForChild("Network")
 local showDialogueEvent = networkFolder:WaitForChild("ShowDialogue") :: RemoteEvent
@@ -32,6 +34,14 @@ local function hookNPCInteractions()
     ProximityPromptService.PromptTriggered:Connect(function(prompt: ProximityPrompt, player: Player)
         local parentModel = prompt.Parent and prompt.Parent.Parent
         local modelName = parentModel and parentModel.Name
+
+        if prompt.Parent and prompt.Parent.Name == "DungeonGatePart" then
+            local party = PartyService.GetParty(player)
+            local partyMembers = if party then PartyService.GetPartyMembers(player) else { player }
+            DungeonManager.StartDungeon(partyMembers, "Normal")
+            print(string.format("[WorldService] %s triggered Dungeon Gate to Temple of Storms", player.Name))
+            return
+        end
 
         local merchantId = parentModel and parentModel:GetAttribute("MerchantId") :: string?
         if merchantId then

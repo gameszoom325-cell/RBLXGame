@@ -20,7 +20,14 @@ local function init()
     local QuestManager = require(Systems:WaitForChild("QuestManager"))
     local EnemyManager = require(Systems:WaitForChild("EnemyManager"))
 
-    print("[Server] All RPG Progression Systems, Inventory, and Economy initialized successfully.")
+    -- Phase 8: Multiplayer, Boss, Dungeon, World Events, and Achievements
+    local PartyService = require(Systems:WaitForChild("PartyService"))
+    local BossManager = require(Systems:WaitForChild("BossManager"))
+    local DungeonManager = require(Systems:WaitForChild("DungeonManager"))
+    local WorldEventService = require(Systems:WaitForChild("WorldEventService"))
+    local AchievementManager = require(Systems:WaitForChild("AchievementManager"))
+
+    print("[Server] All RPG Progression Systems, Inventory, Economy, Parties, Dungeons, and Bosses initialized successfully.")
 end
 
 init()

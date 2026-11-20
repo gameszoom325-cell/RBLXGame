@@ -286,6 +286,66 @@ function LobbyBuilder.BuildLobby(): Folder
 
     questBoard.Parent = lobby
 
+    -- 6.5 Dungeon Portal Gateway (South Entrance leading to Temple of Storms)
+    local dungeonPortalArea = Instance.new("Model")
+    dungeonPortalArea.Name = "TempleOfStormsPortal"
+
+    local dDais = Instance.new("Part")
+    dDais.Name = "DungeonPortalDais"
+    dDais.Size = Vector3.new(16, 1.5, 12)
+    dDais.CFrame = CFrame.new(0, 0.75, -55)
+    dDais.Color = Color3.fromRGB(28, 22, 40)
+    dDais.Material = Enum.Material.Metal
+    dDais.Anchored = true
+    dDais.CanCollide = true
+    dDais.Parent = dungeonPortalArea
+
+    local dRing = Instance.new("Part")
+    dRing.Name = "DungeonPortalRing"
+    dRing.Shape = Enum.PartType.Cylinder
+    dRing.Size = Vector3.new(1.2, 14, 14)
+    dRing.CFrame = CFrame.new(0, 8.5, -55)
+    dRing.Color = Color3.fromRGB(20, 15, 30)
+    dRing.Material = Enum.Material.Metal
+    dRing.Anchored = true
+    dRing.CanCollide = false
+    dRing.Parent = dungeonPortalArea
+
+    local dGate = Instance.new("Part")
+    dGate.Name = "DungeonGatePart"
+    dGate.Shape = Enum.PartType.Cylinder
+    dGate.Size = Vector3.new(0.4, 12, 12)
+    dGate.CFrame = CFrame.new(0, 8.5, -55)
+    dGate.Color = Color3.fromRGB(195, 75, 255)
+    dGate.Material = Enum.Material.Neon
+    dGate.Transparency = 0.35
+    dGate.Anchored = true
+    dGate.CanCollide = false
+    dGate.Parent = dungeonPortalArea
+
+    local dPrompt = Instance.new("ProximityPrompt")
+    dPrompt.ActionText = "Enter Dungeon"
+    dPrompt.ObjectText = "Temple of Storms (Party 1-4)"
+    dPrompt.HoldDuration = 0.75
+    dPrompt.MaxActivationDistance = 14
+    dPrompt.Parent = dGate
+
+    local dBillboard = Instance.new("BillboardGui")
+    dBillboard.Size = UDim2.new(0, 260, 0, 45)
+    dBillboard.StudsOffset = Vector3.new(0, 8, 0)
+    dBillboard.AlwaysOnTop = true
+    local dText = Instance.new("TextLabel")
+    dText.Size = UDim2.new(1, 0, 1, 0)
+    dText.BackgroundTransparency = 1
+    dText.Text = "DUNGEON: TEMPLE OF STORMS"
+    dText.TextColor3 = Color3.fromRGB(215, 95, 255)
+    dText.Font = Enum.Font.GothamBold
+    dText.TextSize = 16
+    dText.Parent = dBillboard
+    dBillboard.Parent = dGate
+
+    dungeonPortalArea.Parent = lobby
+
     -- 7. Spawn Friendly NPCs and Sanctuary Merchants
     local function spawnFriendlyNPC(name: string, title: string, cframe: CFrame, color: Color3, merchantId: string?)
         local npc = Instance.new("Model")

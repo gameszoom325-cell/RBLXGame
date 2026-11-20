@@ -40,11 +40,21 @@ end
 function ProgressionManager.AddXP(player: Player, amount: number, source: string?)
     if amount <= 0 then return end
 
+    -- Check for World Event Double XP buff
+    local worldEventModule = Systems:FindFirstChild("WorldEventService")
+    local effectiveAmount = amount
+    if worldEventModule then
+        local WorldEventService = require(worldEventModule) :: any
+        if WorldEventService.IsDoubleXPActive and WorldEventService.IsDoubleXPActive() then
+            effectiveAmount = amount * 2
+        end
+    end
+
     local data = PlayerDataService.GetPlayerData(player)
     if not data then return end
 
     local currentLevel = data.Level
-    local currentXP = data.XP + amount
+    local currentXP = data.XP + effectiveAmount
     local leveledUp = false
     local startLevel = currentLevel
 
@@ -89,6 +99,14 @@ function ProgressionManager.AddXP(player: Player, amount: number, source: string
                 local InventoryManager = require(invModule) :: any
                 if InventoryManager.ApplyStatsToCharacter then
                     InventoryManager.ApplyStatsToCharacter(player)
+                end
+            end
+
+            local achModule = Systems:FindFirstChild("AchievementManager")
+            if achModule then
+                local AchievementManager = require(achModule) :: any
+                if AchievementManager.CheckStatMilestones then
+                    AchievementManager.CheckStatMilestones(player)
                 end
             end
         end)

@@ -93,6 +93,8 @@ local function createDefaultProfile(): PlayerData
         Inventory = startingInventory,
         QuestProgress = {},
         SkillUnlocks = { "ThunderHammerSlam", "LightningStrike", "StormShield", "LightningDash" },
+        Achievements = {},
+        Titles = { "Initiate of the Storm" },
         Stats = {
             PlayTime = 0,
             EnemyKills = 0,
@@ -100,6 +102,7 @@ local function createDefaultProfile(): PlayerData
             Deaths = 0,
             LastLogin = os.time(),
             QuestsCompleted = 0,
+            DungeonsCompleted = 0,
         },
     }
 end
@@ -122,6 +125,8 @@ local function migrateAndSanitize(data: any): PlayerData
     data.Inventory = data.Inventory or default.Inventory
     data.QuestProgress = data.QuestProgress or default.QuestProgress
     data.SkillUnlocks = data.SkillUnlocks or default.SkillUnlocks
+    data.Achievements = data.Achievements or default.Achievements
+    data.Titles = data.Titles or default.Titles
     data.Stats = data.Stats or default.Stats
 
     -- Ensure sub-stats exist
@@ -131,6 +136,7 @@ local function migrateAndSanitize(data: any): PlayerData
     data.Stats.Deaths = data.Stats.Deaths or 0
     data.Stats.LastLogin = os.time()
     data.Stats.QuestsCompleted = data.Stats.QuestsCompleted or 0
+    data.Stats.DungeonsCompleted = data.Stats.DungeonsCompleted or 0
 
     return data :: PlayerData
 end

@@ -16,16 +16,31 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Systems = ReplicatedStorage:WaitForChild("Systems")
 local EnemyManager = require(Systems:WaitForChild("EnemyManager"))
 
-export type AIState = "IDLE" | "CHASE" | "ATTACK" | "RETURN"
+export type AIState = "IDLE" | "PATROL" | "CHASE" | "ATTACK" | "RETREAT" | "RETURN"
 
 type EnemyAIState = {
     state: AIState,
     lastAttackTime: number,
+    lastAbilityTime: number,
     homePosition: Vector3,
+    patrolTarget: Vector3?,
+    lastPatrolSwitch: number,
 }
 
 local EnemyAI = {}
 local enemyStates: { [Model]: EnemyAIState } = {}
+
+-- Utility for Line of Sight Raycasting
+local function hasLineOfSight(origin: Vector3, targetPos: Vector3, enemyModel: Model, targetChar: Model): boolean
+    local raycastParams = RaycastParams.new()
+    raycastParams.FilterType = Enum.RaycastFilterType.Exclude
+    raycastParams.FilterDescendantsInstances = { enemyModel, targetChar }
+    raycastParams.IgnoreWater = true
+
+    local dir = (targetPos - origin)
+    local result = Workspace:Raycast(origin, dir, raycastParams)
+    return result == nil or result.Instance == nil or result.Instance.CanCollide == false
+end
 
 -- AI Tuning Constants
 local AI_TICK_RATE = 0.20 -- 5 updates per second, high efficiency
@@ -171,28 +186,63 @@ RunService.Heartbeat:Connect(function()
             ai = {
                 state = "IDLE",
                 lastAttackTime = 0,
+                lastAbilityTime = 0,
                 homePosition = data.respawnNode,
+                patrolTarget = nil,
+                lastPatrolSwitch = now,
             }
             enemyStates[enemyModel] = ai
         end
 
         local isDrone = (data.enemyType == "TempestDrone")
+        local isElite = (enemyModel:GetAttribute("IsElite") == true)
         local detectRadius = if isDrone then DRONE_DETECTION_RADIUS else BEAST_DETECTION_RADIUS
         local attackRadius = if isDrone then DRONE_ATTACK_RADIUS else BEAST_ATTACK_RADIUS
-        local attackCooldown = if isDrone then DRONE_ATTACK_COOLDOWN else BEAST_ATTACK_COOLDOWN
+        local attackCooldown = if isDrone then (if isElite then 1.8 else DRONE_ATTACK_COOLDOWN) else (if isElite then 1.3 else BEAST_ATTACK_COOLDOWN)
 
-        local _, targetChar, distToTarget = findNearestPlayer(hrp.Position, MAX_LEASH_DISTANCE)
+        -- Group Aggro support: Check if ally alerted this enemy to an attacker
+        local aggroName = enemyModel:GetAttribute("AggroTarget") :: string?
+        local aggroPlayer = if aggroName then Players:FindFirstChild(aggroName) else nil
+        local targetChar: Model? = nil
+        local distToTarget = 999.0
+
+        if aggroPlayer and aggroPlayer:IsA("Player") and aggroPlayer.Character then
+            local aHrp = aggroPlayer.Character:FindFirstChild("HumanoidRootPart") :: BasePart?
+            local aHum = aggroPlayer.Character:FindFirstChildOfClass("Humanoid")
+            if aHrp and aHum and aHum.Health > 0 then
+                targetChar = aggroPlayer.Character
+                distToTarget = (aHrp.Position - hrp.Position).Magnitude
+            else
+                enemyModel:SetAttribute("AggroTarget", nil)
+            end
+        end
+
+        if not targetChar then
+            local _, nearestChar, nDist = findNearestPlayer(hrp.Position, MAX_LEASH_DISTANCE)
+            targetChar = nearestChar
+            distToTarget = nDist
+        end
+
         local distFromHome = (hrp.Position - ai.homePosition).Magnitude
+        local hpRatio = data.currentHp / data.maxHp
 
-        -- State Transitions
+        -- Line of sight verification
+        local hasLOS = true
+        if targetChar and targetChar.PrimaryPart then
+            hasLOS = hasLineOfSight(hrp.Position, targetChar.PrimaryPart.Position, enemyModel, targetChar)
+        end
+
+        -- State Machine Transitions
         if distFromHome > MAX_LEASH_DISTANCE or not targetChar then
-            ai.state = if distFromHome > 4.0 then "RETURN" else "IDLE"
-        elseif distToTarget <= attackRadius then
+            ai.state = if distFromHome > 4.0 then "RETURN" else "PATROL"
+        elseif hpRatio <= 0.20 and distToTarget < 12.0 and not isDrone then
+            ai.state = "RETREAT"
+        elseif distToTarget <= attackRadius and hasLOS then
             ai.state = "ATTACK"
         elseif distToTarget <= detectRadius then
             ai.state = "CHASE"
         else
-            ai.state = if distFromHome > 4.0 then "RETURN" else "IDLE"
+            ai.state = if distFromHome > 4.0 then "RETURN" else "PATROL"
         end
 
         enemyModel:SetAttribute("AIState", ai.state)
@@ -203,10 +253,8 @@ RunService.Heartbeat:Connect(function()
             if targetHrp then
                 local targetPos = targetHrp.Position
                 if isDrone then
-                    -- Flying movement: hover 5 studs above ground / target
                     bodyPos.Position = targetPos + Vector3.new(0, 5, 0)
                 else
-                    -- Ground pursuit
                     bodyPos.Position = Vector3.new(targetPos.X, ai.homePosition.Y + 1.5, targetPos.Z)
                 end
                 hrp.CFrame = CFrame.new(hrp.Position, Vector3.new(targetPos.X, hrp.Position.Y, targetPos.Z))
@@ -225,6 +273,24 @@ RunService.Heartbeat:Connect(function()
                         executeBeastAttack(enemyModel, targetHrp)
                     end
                 end
+
+                -- Elite Special Ability Pulse
+                if isElite and now - ai.lastAbilityTime >= 5.0 then
+                    ai.lastAbilityTime = now
+                    local char = targetHrp.Parent :: Model?
+                    if char then
+                        damagePlayer(char, 20, "EliteElectrifiedPulse")
+                    end
+                end
+            end
+
+        elseif ai.state == "RETREAT" and targetChar then
+            -- Backpedal away from player
+            local targetHrp = targetChar:FindFirstChild("HumanoidRootPart") :: BasePart?
+            if targetHrp then
+                local awayDir = (hrp.Position - targetHrp.Position).Unit
+                bodyPos.Position = hrp.Position + (awayDir * 8)
+                hrp.CFrame = CFrame.new(hrp.Position, Vector3.new(targetHrp.Position.X, hrp.Position.Y, targetHrp.Position.Z))
             end
 
         elseif ai.state == "RETURN" then
@@ -236,15 +302,19 @@ RunService.Heartbeat:Connect(function()
             end
             hrp.CFrame = CFrame.new(hrp.Position, ai.homePosition)
 
-        elseif ai.state == "IDLE" then
-            -- Hover / idle at home anchor
-            if isDrone then
-                local hoverY = ai.homePosition.Y + 3.5 + math.sin(now * 2) * 0.8
-                bodyPos.Position = Vector3.new(ai.homePosition.X, hoverY, ai.homePosition.Z)
-            else
-                bodyPos.Position = ai.homePosition + Vector3.new(0, 1.5, 0)
+        elseif ai.state == "PATROL" then
+            -- Wanders slowly in radius around spawn node
+            if not ai.patrolTarget or (now - ai.lastPatrolSwitch > 6.0) then
+                local pAngle = math.random() * math.pi * 2
+                local pDist = math.random(4, 14)
+                ai.patrolTarget = ai.homePosition + Vector3.new(math.cos(pAngle) * pDist, if isDrone then 4 else 1.5, math.sin(pAngle) * pDist)
+                ai.lastPatrolSwitch = now
             end
-        end
+
+            if ai.patrolTarget then
+                bodyPos.Position = ai.patrolTarget
+                hrp.CFrame = CFrame.new(hrp.Position, ai.patrolTarget)
+            end
     end
 end)
 
